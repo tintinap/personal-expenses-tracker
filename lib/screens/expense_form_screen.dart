@@ -106,7 +106,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<CurrencyCode>(
-                    value: _currency,
+                    initialValue: _currency,
                     decoration: const InputDecoration(
                       labelText: 'Currency',
                       border: OutlineInputBorder(),
@@ -125,7 +125,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<Category>(
-              value: _category,
+              initialValue: _category,
               decoration: const InputDecoration(
                 labelText: 'Category',
                 border: OutlineInputBorder(),

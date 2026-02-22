@@ -1,4 +1,4 @@
-# Flutter
+# Flutter/Dart
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -6,11 +6,22 @@
 .pub-cache/
 .pub/
 build/
+doc/api/
+.history/
 
-# IDE
+# IDEs and Editors
 .idea/
 .vscode/
 *.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.nbprojects/
+*.swp
+*.bak
+*.tmp
 
 # Android
 android/local.properties
@@ -19,19 +30,54 @@ android/app/debug/
 android/app/profile/
 android/app/release/
 *.jks
+*.keystore
+*.google-services.json
+**/key.properties
 
-# iOS
+# iOS / macOS
 ios/Pods/
 ios/.symlinks/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/AppFrameworkInfo.plist
 
-# Generated (optional - expense.g.dart is committed)
-# *.g.dart
+macos/Flutter/ephemeral/
+macos/Flutter/Generated.xcconfig
+macos/Flutter/flutter_export_environment.sh
+
+# Xcode user data
+**/xcuserdata/
+**/DerivedData/
+*.moved-aside
+*.xcuserstate
+*.xccheckout
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+Captures/
+
+# Desktop Platform-specific ephemeral files
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Web related
+.web_assets_cache/
 
 # Hive
 *.hive
 *.lock
+
+# Environment variables
+.env
+.env.*
+
+# Application bundles
+*.apk
+*.aab
+*.ipa
+*.exe
 
 # Misc
 .DS_Store
@@ -39,5 +85,6 @@ ios/Flutter/Flutter.podspec
 coverage/
 *.log
 
-# Security
-**/key.properties
+# Generated code (Uncomment if you want to ignore all generated files)
+# *.g.dart
+# *.freezed.dart

@@ -117,6 +117,14 @@ class SettingsScreen extends StatelessWidget {
             ),
             onTap: () => _generateMockData(context),
           ),
+          ListTile(
+            leading: const Icon(Icons.delete_forever, color: Colors.red),
+            title:
+                const Text('Reset Data', style: TextStyle(color: Colors.red)),
+            subtitle:
+                const Text('Permanently delete all expense and income data'),
+            onTap: () => _resetData(context),
+          ),
         ],
       ),
     );
@@ -209,6 +217,43 @@ class SettingsScreen extends StatelessWidget {
         SnackBar(
           content: Text(
               'Generated $count mock transactions for ${DateTime.now().year}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  Future<void> _resetData(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Data'),
+        content: const Text(
+          'This will permanently delete ALL existing data. '
+          'This action cannot be undone.\n\n'
+          'Are you sure?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset Everything'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    await context.read<ExpenseProvider>().clearAll();
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All data has been cleared'),
           backgroundColor: Colors.green,
         ),
       );
