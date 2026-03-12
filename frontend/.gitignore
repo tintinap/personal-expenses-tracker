@@ -88,7 +88,3 @@ coverage/
 # Generated code (Uncomment if you want to ignore all generated files)
 # *.g.dart
 # *.freezed.dart
-
-# Node.js
-node_modules/
-dist/

@@ -1,30 +1,12 @@
-import 'package:hive/hive.dart';
-
 import 'category.dart';
 
-part 'expense.g.dart';
-
-@HiveType(typeId: 0)
-class Expense extends HiveObject {
-  @HiveField(0)
+class Expense {
   final String id;
-
-  @HiveField(1)
   final double amount;
-
-  @HiveField(2)
   final DateTime date;
-
-  @HiveField(3)
   final int categoryIndex;
-
-  @HiveField(4)
   final String? note;
-
-  @HiveField(5)
   final bool isIncome;
-
-  @HiveField(6)
   final String currencyCode;
 
   Expense({

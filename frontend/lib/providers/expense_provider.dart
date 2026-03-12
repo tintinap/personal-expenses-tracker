@@ -1,65 +1,69 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 import '../core/constants.dart';
-import '../data/hive/hive_service.dart';
+import '../data/database/database_service.dart';
 import '../data/models/category.dart';
 import '../data/models/expense.dart';
 import '../services/exchange_rate_service.dart';
 
 class ExpenseProvider extends ChangeNotifier {
+  final DatabaseService _db = DatabaseService();
+  List<Expense> _expenses = [];
+
   ExpenseProvider() {
-    _box.listenable().addListener(notifyListeners);
+    _loadExpenses();
   }
 
-  Box<Expense> get _box => HiveService.expensesBox;
+  Future<void> _loadExpenses() async {
+    _expenses = await _db.getAllExpenses();
+    notifyListeners();
+  }
 
-  List<Expense> get expenses =>
-      _box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+  List<Expense> get expenses => List.unmodifiable(_expenses);
 
   List<Expense> filteredExpenses(FilterType filter) {
     final now = DateTime.now();
     final range = _getDateRange(filter, now);
-    if (range == null) return expenses;
-    return expenses
+    if (range == null) return _expenses;
+    return _expenses
         .where(
             (e) => !e.date.isBefore(range.start) && !e.date.isAfter(range.end))
         .toList();
   }
 
   Future<void> addExpense(Expense expense) async {
-    await _box.add(expense);
-    notifyListeners();
+    await _db.insertExpense(expense);
+    await _loadExpenses();
   }
 
   Future<void> addExpenses(Iterable<Expense> expenses) async {
-    await _box.addAll(expenses);
-    notifyListeners();
+    for (final expense in expenses) {
+      await _db.insertExpense(expense);
+    }
+    await _loadExpenses();
   }
 
   Future<void> updateExpense(
       Expense existingExpense, Expense updatedExpense) async {
-    final key = existingExpense.key;
-    if (key != null) {
-      await _box.put(key, updatedExpense);
-      notifyListeners();
-    }
+    await _db.updateExpense(updatedExpense);
+    await _loadExpenses();
   }
 
   Future<void> deleteExpense(Expense expense) async {
-    await expense.delete();
-    notifyListeners();
+    await _db.deleteExpense(expense.id);
+    await _loadExpenses();
   }
 
   Future<void> deleteExpenseByKey(dynamic key) async {
-    await _box.delete(key);
-    notifyListeners();
+    if (key is String) {
+      await _db.deleteExpense(key);
+      await _loadExpenses();
+    }
   }
 
   Future<void> clearAll() async {
-    await _box.clear();
-    notifyListeners();
+    await _db.clearAll();
+    await _loadExpenses();
   }
 
   /// Sum of filtered expenses converted to [displayCurrency].
