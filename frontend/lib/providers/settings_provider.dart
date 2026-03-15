@@ -7,7 +7,7 @@ enum ThemeModeOption { system, light, dark }
 
 class SettingsProvider extends ChangeNotifier {
   ThemeModeOption _themeMode = ThemeModeOption.system;
-  CurrencyCode _currency = CurrencyCode.usd;
+  CurrencyCode _currency = CurrencyCode.aud;
 
   ThemeModeOption get themeMode => _themeMode;
   CurrencyCode get currency => _currency;

@@ -11,7 +11,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables for PostgreSQL connection
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('Could not load .env file, proceeding with defaults: $e');
+  }
 
   // Initialize PostgreSQL database connection
   await DatabaseService().init();

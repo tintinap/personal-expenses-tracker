@@ -6,7 +6,6 @@ enum CurrencyCode {
   eur('EUR', 'Euro', '€'),
   gbp('GBP', 'British Pound', '£'),
   jpy('JPY', 'Japanese Yen', '¥'),
-  thb('THB', 'Thai Baht', '฿'),
   cny('CNY', 'Chinese Yuan', '¥'),
   aud('AUD', 'Australian Dollar', 'A\$'),
   cad('CAD', 'Canadian Dollar', 'C\$'),

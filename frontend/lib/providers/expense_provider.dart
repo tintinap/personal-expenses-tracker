@@ -15,7 +15,78 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   Future<void> _loadExpenses() async {
-    _expenses = await _db.getAllExpenses();
+    try {
+      _expenses = await _db.getAllExpenses();
+      //   Expense(
+      //     id: 'mock-1',
+      //     amount: 15.50,
+      //     date: DateTime(2026, 3, 12),
+      //     categoryIndex: 0, // Food
+      //     note: 'Lunch at cafe',
+      //     currencyCode: 'AUD',
+      //   ),
+      //   Expense(
+      //     id: 'mock-2',
+      //     amount: 45.00,
+      //     date: DateTime(2026, 3, 10),
+      //     categoryIndex: 1, // Transport
+      //     note: 'Uber rides',
+      //     currencyCode: 'AUD',
+      //   ),
+      //   Expense(
+      //     id: 'mock-3',
+      //     amount: 1200.00,
+      //     date: DateTime(2026, 3, 1),
+      //     categoryIndex: 2, // Rent
+      //     note: 'Monthly rent',
+      //     currencyCode: 'AUD',
+      //   ),
+      //   Expense(
+      //     id: 'mock-4',
+      //     amount: 89.99,
+      //     date: DateTime(2026, 3, 8),
+      //     categoryIndex: 3, // Shopping
+      //     note: 'New shoes',
+      //     currencyCode: 'AUD',
+      //   ),
+      //   Expense(
+      //     id: 'mock-5',
+      //     amount: 120.00,
+      //     date: DateTime(2026, 3, 5),
+      //     categoryIndex: 4, // Bills
+      //     note: 'Electricity bill',
+      //     currencyCode: 'AUD',
+      //   ),
+      //   Expense(
+      //     id: 'mock-6',
+      //     amount: 25.00,
+      //     date: DateTime(2026, 3, 9),
+      //     categoryIndex: 5, // Entertainment
+      //     note: 'Movie tickets',
+      //     currencyCode: 'AUD',
+      //   ),
+      //   Expense(
+      //     id: 'mock-7',
+      //     amount: 3500.00,
+      //     date: DateTime(2026, 3, 1),
+      //     categoryIndex: 7, // Income
+      //     note: 'Salary',
+      //     isIncome: true,
+      //     currencyCode: 'AUD',
+      //   ),
+      //   Expense(
+      //     id: 'mock-8',
+      //     amount: 32.50,
+      //     date: DateTime(2026, 3, 11),
+      //     categoryIndex: 0, // Food
+      //     note: 'Groceries',
+      //     currencyCode: 'USD',
+      //   ),
+      // ];
+    } catch (e) {
+      debugPrint('Error loading expenses: $e');
+      _expenses = [];
+    }
     notifyListeners();
   }
 

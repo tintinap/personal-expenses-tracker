@@ -20,6 +20,21 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   FilterType _filter = FilterType.monthly;
+  Future<double>? _totalFuture;
+  String? _lastCurrency;
+  int? _lastExpenseCount;
+
+  void _refreshTotalFuture(ExpenseProvider provider, String currencyCode) {
+    final expenses = provider.filteredExpenses(_filter);
+    if (_totalFuture != null &&
+        _lastCurrency == currencyCode &&
+        _lastExpenseCount == expenses.length) {
+      return;
+    }
+    _lastCurrency = currencyCode;
+    _lastExpenseCount = expenses.length;
+    _totalFuture = provider.getConvertedTotal(_filter, currencyCode);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,13 +46,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builder: (context, provider, settings, _) {
           final expenses = provider.filteredExpenses(_filter);
           final displayCurrency = settings.currency;
+
+          // Refresh the cached total future only when inputs change.
+          _refreshTotalFuture(provider, displayCurrency.code);
+
           return Column(
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: FilterTabs(
                   selectedFilter: _filter,
-                  onFilterChanged: (f) => setState(() => _filter = f),
+                  onFilterChanged: (f) => setState(() {
+                    _filter = f;
+                    _totalFuture = null; // force refresh on filter change
+                  }),
                 ),
               ),
               Expanded(
@@ -52,13 +74,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       FutureBuilder<double>(
-                        future: provider.getConvertedTotal(
-                          _filter,
-                          displayCurrency.code,
-                        ),
+                        future: _totalFuture,
                         builder: (context, totalSnap) {
-                          if (!totalSnap.hasData)
+                          if (!totalSnap.hasData) {
                             return const SizedBox.shrink();
+                          }
                           final total = totalSnap.data!;
                           return Padding(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

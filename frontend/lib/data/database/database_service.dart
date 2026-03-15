@@ -60,7 +60,7 @@ class DatabaseService {
       return Expense(
         id: row['id'] as String,
         amount: (row['amount'] as num).toDouble(),
-        date: DateTime.parse(row['date'] as String),
+        date: DateTime.parse(row['date'] as String).toLocal(),
         categoryIndex: row['categoryIndex'] as int,
         note: row['note'] as String?,
         isIncome: row['isIncome'] as bool,
@@ -80,7 +80,7 @@ class DatabaseService {
     return {
       'id': expense.id,
       'amount': expense.amount,
-      'date': expense.date.toIso8601String(),
+      'date': expense.date.toUtc().toIso8601String(),
       'categoryIndex': expense.categoryIndex,
       'note': expense.note,
       'isIncome': expense.isIncome,

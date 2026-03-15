@@ -12,13 +12,35 @@ A production-ready expense tracking mobile application built with Flutter.
 - excel (XLSX export)
 - Material 3 (Green/Teal theme)
 
-## Setup
+## 🚀 How to Run
 
-1. Ensure Flutter is installed: `flutter doctor`
-2. If platform folders are incomplete, run: `flutter create .` (adds/updates android/, ios/ without overwriting lib/)
-3. Get dependencies: `flutter pub get`
-4. The Hive adapter for Expense is pre-generated in `lib/data/models/expense.g.dart`. To regenerate: `dart run build_runner build`
-5. Run the app: `flutter run`
+You don't need to manually install Flutter, Node, or PostgreSQL to run the app. Everything is bundled in Docker.
+
+1. Ensure **Docker Desktop** is running on your machine.
+2. In your terminal, run the following command from the project root:
+   ```bash
+   docker-compose up -d --build
+   ```
+
+That's it! The command will build the containers and start the app in the background.
+
+- **Frontend UX:** [http://localhost:8080](http://localhost:8080)
+- **Backend API:** `http://localhost:3000/expenses`
+
+### Other Useful Commands
+
+- **Stop the app:**
+  ```bash
+  docker-compose stop
+  ```
+- **View logs:**
+  ```bash
+  docker-compose logs -f
+  ```
+- **Stop and wipe database data (Reset):**
+  ```bash
+  docker-compose down -v
+  ```
 
 ## Features
 
