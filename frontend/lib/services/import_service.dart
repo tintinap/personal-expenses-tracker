@@ -9,7 +9,7 @@ import '../providers/expense_provider.dart';
 class ImportService {
   /// Picks an Excel file and imports expenses from the "Raw Data" sheet.
   /// Expected columns: Date | Category | Amount | [Currency] | Note
-  /// Currency column is optional (defaults to USD if missing).
+  /// Currency column is optional (defaults to AUD if missing).
   /// Amount: positive = income, negative = expense
   static Future<ImportResult> importFromExcel(
     ExpenseProvider provider, {
@@ -66,11 +66,11 @@ class ImportService {
         dynamic noteCell;
         if (row.length >= 5) {
           final currencyCell = row[3]?.value;
-          currencyCode = _parseCurrency(currencyCell) ?? 'USD';
+          currencyCode = _parseCurrency(currencyCell) ?? 'AUD';
           noteCell = row.length > 4 ? row[4]?.value : null;
         } else {
           noteCell = row.length > 3 ? row[3]?.value : null;
-          currencyCode = 'USD';
+          currencyCode = 'AUD';
         }
 
         DateTime? date;
@@ -200,7 +200,7 @@ class ImportService {
       'ZAR',
     ];
     if (supported.contains(str)) return str;
-    // Try matching first 3 chars for codes like "USD"
+    // Try matching first 3 chars for codes like "AUD"
     if (str.length >= 3 && supported.contains(str.substring(0, 3))) {
       return str.substring(0, 3);
     }

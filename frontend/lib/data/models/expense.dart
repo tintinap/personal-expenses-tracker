@@ -16,7 +16,7 @@ class Expense {
     required this.categoryIndex,
     this.note,
     this.isIncome = false,
-    this.currencyCode = 'USD',
+    this.currencyCode = 'AUD',
   });
 
   Category get category => CategoryExtension.fromIndex(categoryIndex);

@@ -42,7 +42,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       _category = e.category;
       _date = e.date;
       _isIncome = e.isIncome;
-      _currency = CurrencyCode.fromCode(e.currencyCode) ?? CurrencyCode.usd;
+      _currency = CurrencyCode.fromCode(e.currencyCode) ?? CurrencyCode.aud;
     } else {
       _amountController = TextEditingController();
       _noteController = TextEditingController();
@@ -118,7 +118,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                             ))
                         .toList(),
                     onChanged: (v) =>
-                        setState(() => _currency = v ?? CurrencyCode.usd),
+                        setState(() => _currency = v ?? CurrencyCode.aud),
                   ),
                 ),
               ],

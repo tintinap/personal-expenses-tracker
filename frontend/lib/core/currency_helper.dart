@@ -2,12 +2,13 @@ import 'package:intl/intl.dart';
 
 /// Currency codes supported by the app (all supported by Frankfurter for rates).
 enum CurrencyCode {
+  aud('AUD', 'Australian Dollar', 'A\$'),
+  thb('THB', 'Thai Baht', '฿'),
   usd('USD', 'US Dollar', '\$'),
   eur('EUR', 'Euro', '€'),
   gbp('GBP', 'British Pound', '£'),
   jpy('JPY', 'Japanese Yen', '¥'),
   cny('CNY', 'Chinese Yuan', '¥'),
-  aud('AUD', 'Australian Dollar', 'A\$'),
   cad('CAD', 'Canadian Dollar', 'C\$'),
   chf('CHF', 'Swiss Franc', 'CHF'),
   inr('INR', 'Indian Rupee', '₹'),
