@@ -1,0 +1,65 @@
+{
+  "common": {
+    "appName": "DailySpend",
+    "loading": "กำลังโหลด...",
+    "save": "บันทึก",
+    "cancel": "ยกเลิก",
+    "delete": "ลบ",
+    "edit": "แก้ไข",
+    "add": "เพิ่ม",
+    "search": "ค้นหา",
+    "noData": "ไม่มีข้อมูล"
+  },
+  "nav": {
+    "dashboard": "แดชบอร์ด",
+    "spreadsheet": "ตารางรายจ่าย",
+    "settings": "ตั้งค่า"
+  },
+  "dashboard": {
+    "title": "แดชบอร์ด",
+    "netTotal": "ยอดรวมสุทธิ",
+    "income": "รายรับ",
+    "expenses": "รายจ่าย",
+    "addExpense": "เพิ่มรายการ",
+    "recentTransactions": "รายการล่าสุด"
+  },
+  "expense": {
+    "amount": "จำนวนเงิน",
+    "date": "วันที่",
+    "category": "หมวดหมู่",
+    "note": "โน้ต",
+    "currency": "สกุลเงิน",
+    "isIncome": "รายรับ",
+    "addNew": "เพิ่มรายจ่ายใหม่",
+    "editExpense": "แก้ไขรายจ่าย"
+  },
+  "categories": {
+    "food": "อาหาร",
+    "transport": "การเดินทาง",
+    "rent": "ค่าเช่า",
+    "shopping": "ช้อปปิ้ง",
+    "bills": "บิล",
+    "entertainment": "ความบันเทิง",
+    "health": "สุขภาพ",
+    "income": "รายรับ",
+    "other": "อื่นๆ"
+  },
+  "filters": {
+    "weekly": "รายสัปดาห์",
+    "fortnightly": "ราย 2 สัปดาห์",
+    "monthly": "รายเดือน",
+    "yearly": "รายปี"
+  },
+  "settings": {
+    "title": "ตั้งค่า",
+    "theme": "ธีม",
+    "themeSystem": "ระบบ",
+    "themeLight": "สว่าง",
+    "themeDark": "มืด",
+    "displayCurrency": "สกุลเงินแสดงผล",
+    "language": "ภาษา",
+    "importExport": "นำเข้า / ส่งออก",
+    "import": "นำเข้า Excel",
+    "export": "ส่งออก Excel"
+  }
+}

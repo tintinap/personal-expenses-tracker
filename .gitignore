@@ -65,13 +65,10 @@ windows/flutter/ephemeral/
 # Web related
 .web_assets_cache/
 
-# Hive
-*.hive
-*.lock
-
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # Application bundles
 *.apk
@@ -79,16 +76,19 @@ windows/flutter/ephemeral/
 *.ipa
 *.exe
 
+# Node.js
+node_modules/
+dist/
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# MISE
+.mise.local.toml
+
 # Misc
 .DS_Store
 .coverage
 coverage/
 *.log
-
-# Generated code (Uncomment if you want to ignore all generated files)
-# *.g.dart
-# *.freezed.dart
-
-# Node.js
-node_modules/
-dist/

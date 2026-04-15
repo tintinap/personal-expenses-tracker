@@ -1,0 +1,88 @@
+# ============================================================
+# DailySpend — Tool versions managed by MISE
+# Run `mise install` to install all tools at once.
+# https://mise.jdx.dev
+# ============================================================
+
+[tools]
+node = "20"          # Next.js web + NestJS API + Prisma CLI
+pnpm = "10"          # Node package manager
+flutter = "3.29"     # Mobile app (iOS & Android)
+
+[env]
+COREPACK_ENABLE_STRICT = "0"
+
+# ══════════════════════════════════════════════
+# 🚀 PRIMARY COMMANDS — all you need day-to-day
+# ══════════════════════════════════════════════
+
+[tasks.setup]
+description = "First-time setup: install deps, start DB, run migrations"
+run = "bash scripts/setup.sh"
+
+[tasks.dev]
+description = "Start everything: PostgreSQL + NestJS + Next.js"
+run = "bash scripts/dev.sh"
+
+# ══════════════════════════════════════════════
+# Individual service tasks
+# ══════════════════════════════════════════════
+
+[tasks.dev-api]
+description = "Start NestJS backend only (port 3000)"
+dir = "apps/api"
+run = "pnpm run start:dev"
+
+[tasks.dev-web]
+description = "Start Next.js web only (port 3001)"
+dir = "apps/web"
+run = "pnpm run dev -- --port 3001"
+
+[tasks.dev-mobile]
+description = "Start Flutter mobile app (default device)"
+dir = "apps/mobile"
+run = "flutter run"
+
+# ══════════════════════════════════════════════
+# Database tasks (Prisma)
+# ══════════════════════════════════════════════
+
+[tasks.db-migrate]
+description = "Create and apply a new Prisma migration"
+dir = "apps/api"
+run = "npx prisma migrate dev"
+
+[tasks.db-deploy]
+description = "Apply pending migrations (production)"
+dir = "apps/api"
+run = "npx prisma migrate deploy"
+
+[tasks.db-studio]
+description = "Open Prisma Studio GUI"
+dir = "apps/api"
+run = "npx prisma studio"
+
+[tasks.db-generate]
+description = "Regenerate Prisma Client after schema changes"
+dir = "apps/api"
+run = "npx prisma generate"
+
+# ══════════════════════════════════════════════
+# Docker tasks
+# ══════════════════════════════════════════════
+
+[tasks.docker-up]
+description = "Build & start all services in Docker"
+run = "docker compose up -d --build"
+
+[tasks.docker-up-all]
+description = "Build all including Flutter mobile web"
+run = "docker compose --profile mobile up -d --build"
+
+[tasks.docker-down]
+description = "Stop all services and remove volumes"
+run = "docker compose down -v"
+
+[tasks.docker-logs]
+description = "Follow logs for all services"
+run = "docker compose logs -f"

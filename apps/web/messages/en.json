@@ -1,0 +1,65 @@
+{
+  "common": {
+    "appName": "DailySpend",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "noData": "No data available"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "spreadsheet": "Spreadsheet",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "netTotal": "Net Total",
+    "income": "Income",
+    "expenses": "Expenses",
+    "addExpense": "Add Expense",
+    "recentTransactions": "Recent Transactions"
+  },
+  "expense": {
+    "amount": "Amount",
+    "date": "Date",
+    "category": "Category",
+    "note": "Note",
+    "currency": "Currency",
+    "isIncome": "Income",
+    "addNew": "Add New Expense",
+    "editExpense": "Edit Expense"
+  },
+  "categories": {
+    "food": "Food",
+    "transport": "Transport",
+    "rent": "Rent",
+    "shopping": "Shopping",
+    "bills": "Bills",
+    "entertainment": "Entertainment",
+    "health": "Health",
+    "income": "Income",
+    "other": "Other"
+  },
+  "filters": {
+    "weekly": "Weekly",
+    "fortnightly": "Fortnightly",
+    "monthly": "Monthly",
+    "yearly": "Yearly"
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "displayCurrency": "Display Currency",
+    "language": "Language",
+    "importExport": "Import / Export",
+    "import": "Import Excel",
+    "export": "Export Excel"
+  }
+}
