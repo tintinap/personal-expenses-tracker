@@ -37,9 +37,22 @@ Once running:
 |---------|-----|
 | **Web App** | http://localhost:3001 |
 | **API** | http://localhost:3000/expenses |
+| **API Docs (Swagger)** | http://localhost:3000/api/docs |
 | **Prisma Studio** | `mise run db-studio` |
 
 Press `Ctrl+C` to stop everything.
+
+### Running Flutter Separately
+
+To run the Flutter mobile app on an emulator/simulator or physical device natively:
+
+```bash
+# Ensure an emulator/simulator is open, then run:
+mise run dev-mobile
+
+# Or manually:
+cd apps/mobile && flutter run
+```
 
 ---
 

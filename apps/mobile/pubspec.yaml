@@ -9,22 +9,47 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  provider: ^6.1.2
+
+  # State management (PRD: Riverpod)
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation (PRD: go_router)
+  go_router: ^14.8.1
+
+  # Local database (PRD: Drift/SQLite)
+  drift: ^2.22.1
+  sqlite3_flutter_libs: ^0.5.0
+
+  # HTTP client (PRD: Dio with interceptors)
+  dio: ^5.7.0
+
+  # Secure storage (PRD: JWT tokens)
+  flutter_secure_storage: ^9.2.4
+
+  # Charts
   fl_chart: ^0.66.2
-  pluto_grid: ^8.1.0
+
+  # Excel export
   excel: ^4.0.6
+
+  # Utilities
   intl: ^0.20.2
   path_provider: ^2.1.2
   share_plus: ^7.2.2
   uuid: ^4.3.3
-  file_picker: ^8.0.0+1
-  http: ^1.2.0
   flutter_dotenv: ^5.2.1
+  connectivity_plus: ^6.1.1
+  json_annotation: ^4.9.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  drift_dev: ^2.22.1
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.3
+  json_serializable: ^6.9.4
 
 flutter:
   uses-material-design: true
