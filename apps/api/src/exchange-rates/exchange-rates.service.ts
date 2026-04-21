@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { ExchangeRatesRepository } from './exchange-rates.repository';
 
 @Injectable()
 export class ExchangeRatesService {
   private readonly logger = new Logger(ExchangeRatesService.name);
   private readonly frankfurterBaseUrl = 'https://api.frankfurter.app';
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repository: ExchangeRatesRepository) {}
 
   /**
    * Get exchange rate, checking cache first, then fetching from Frankfurter.
@@ -19,15 +19,7 @@ export class ExchangeRatesService {
     const rateDate = date || new Date().toISOString().split('T')[0];
 
     // Check cache
-    const cached = await this.prisma.exchangeRate.findUnique({
-      where: {
-        baseCurrency_quoteCurrency_rateDate: {
-          baseCurrency: from,
-          quoteCurrency: to,
-          rateDate: new Date(rateDate),
-        },
-      },
-    });
+    const cached = await this.repository.findByPairAndDate(from, to, rateDate);
 
     if (cached) {
       return { rate: Number(cached.rate), date: rateDate };
@@ -54,23 +46,7 @@ export class ExchangeRatesService {
       const actualDate = data.date;
 
       // Cache the rate
-      await this.prisma.exchangeRate.upsert({
-        where: {
-          baseCurrency_quoteCurrency_rateDate: {
-            baseCurrency: from,
-            quoteCurrency: to,
-            rateDate: new Date(actualDate),
-          },
-        },
-        create: {
-          baseCurrency: from,
-          quoteCurrency: to,
-          rate,
-          rateDate: new Date(actualDate),
-          source: 'frankfurter',
-        },
-        update: { rate, source: 'frankfurter' },
-      });
+      await this.repository.upsertRate(from, to, actualDate, rate, 'frankfurter');
 
       return { rate, date: actualDate };
     } catch (error) {
@@ -79,10 +55,7 @@ export class ExchangeRatesService {
       );
 
       // Fall back to most recent cached rate for this pair
-      const fallback = await this.prisma.exchangeRate.findFirst({
-        where: { baseCurrency: from, quoteCurrency: to },
-        orderBy: { rateDate: 'desc' },
-      });
+      const fallback = await this.repository.findMostRecentByPair(from, to);
 
       if (fallback) {
         return {
