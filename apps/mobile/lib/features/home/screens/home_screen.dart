@@ -144,12 +144,42 @@ class HomeScreen extends ConsumerWidget {
                   );
                 }
 
+                // Sort transactions by date descending
+                final sortedTransactions = List.of(transactions)
+                  ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+
                 // Group transactions by date
-                // For simplicity here we just list them flat, but real app group by date
+                final listItems = [];
+                String? lastDateStr;
+                
+                for (final tx in sortedTransactions) {
+                  final dateStr = DateFormat.yMMMd().format(tx.transactionDate);
+                  if (dateStr != lastDateStr) {
+                    listItems.add(dateStr); // Add date header
+                    lastDateStr = dateStr;
+                  }
+                  listItems.add(tx);
+                }
+
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final tx = transactions[index];
+                      final item = listItems[index];
+                      
+                      if (item is String) {
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                          child: Text(
+                            item,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      }
+                      
+                      final tx = item;
                       final isIncome = tx.transactionType == 'currency_income' || 
                                        tx.transactionType == 'currency_exchange_in';
                       final color = isIncome ? Colors.green : theme.textTheme.bodyLarge?.color;
@@ -164,7 +194,7 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ),
                         title: Text(tx.note?.isNotEmpty == true ? tx.note! : tx.transactionType),
-                        subtitle: Text(DateFormat.yMMMd().format(tx.transactionDate)),
+                        subtitle: Text(DateFormat.jm().format(tx.transactionDate)),
                         trailing: Text(
                           '$prefix ${tx.originalCurrency} ${tx.originalAmount.toStringAsFixed(2)}',
                           style: theme.textTheme.titleMedium?.copyWith(
@@ -177,7 +207,7 @@ class HomeScreen extends ConsumerWidget {
                         },
                       );
                     },
-                    childCount: transactions.length,
+                    childCount: listItems.length,
                   ),
                 );
               },
