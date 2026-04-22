@@ -6,7 +6,7 @@ A production-ready expense tracking application.
 
 | Layer | Technology |
 |-------|-----------|
-| Mobile App | Flutter 3.29 — iOS & Android |
+| Mobile App | Flutter 3.41.7 — iOS & Android |
 | Web App | Next.js 16 (App Router, Tailwind, i18n: EN + TH) |
 | Backend API | NestJS 11 (TypeScript) |
 | Database | PostgreSQL 16 |
@@ -20,6 +20,7 @@ A production-ready expense tracking application.
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running)
 - [MISE](https://mise.jdx.dev/) (`brew install mise` or `curl https://mise.run | sh`)
+- **Flutter 3.41.7+** — required for debug mode on iOS 26+ physical devices (managed automatically via MISE)
 
 ### Two commands — that's it
 
@@ -44,15 +45,19 @@ Press `Ctrl+C` to stop everything.
 
 ### Running Flutter Separately
 
-To run the Flutter mobile app on an emulator/simulator or physical device natively:
+To run the Flutter mobile app on a simulator or physical device:
 
 ```bash
-# Ensure an emulator/simulator is open, then run:
+# Ensure a simulator is open, then run:
 mise run dev-mobile
 
 # Or manually:
 cd apps/mobile && flutter run
 ```
+
+> **Note for physical device users:** iOS 26+ requires Flutter 3.32+ for debug mode support.
+> If prompted to choose a device, select your physical device or the simulator.
+> Flutter is managed via MISE (`flutter = "3.44"` in `.mise.toml`) — run `mise install` to upgrade.
 
 ---
 
