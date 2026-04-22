@@ -41,7 +41,7 @@ class RunningBalanceChips extends ConsumerWidget {
                   color: balance.balance < 0 ? theme.colorScheme.error : null,
                   fontWeight: FontWeight.w500,
                 ),
-                onPressed: () => context.go('/wallets/${balance.currency}'),
+                onPressed: () => context.push('/wallets/${balance.currency}'),
               );
             },
           ),

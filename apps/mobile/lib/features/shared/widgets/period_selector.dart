@@ -81,8 +81,59 @@ class PeriodSelector extends ConsumerWidget {
               Expanded(
                 child: InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  onTap: () {
-                    // TODO: Show DatePicker or Custom range picker
+                  onTap: () async {
+                    if (periodState.type == PeriodType.custom) return;
+
+                    final initial = periodState.from.isAfter(DateTime.now()) 
+                        ? DateTime.now() 
+                        : periodState.from;
+
+                    final pickedDate = await showDialog<DateTime>(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          contentPadding: const EdgeInsets.only(top: 16),
+                          content: SizedBox(
+                            width: 320,
+                            height: 400,
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: CalendarDatePicker(
+                                    initialDate: initial,
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime.now(),
+                                    onDateChanged: (date) {
+                                      Navigator.pop(context, date);
+                                    },
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, DateTime.now()),
+                                        child: const Text('Today'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Cancel'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                    
+                    if (pickedDate != null) {
+                      notifier.setDate(pickedDate);
+                    }
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),

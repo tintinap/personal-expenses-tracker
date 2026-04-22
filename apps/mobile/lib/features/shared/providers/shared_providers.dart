@@ -21,7 +21,7 @@ class PeriodNotifier extends Notifier<PeriodState> {
   @override
   PeriodState build() {
     final now = DateTime.now();
-    return _calculatePeriod(PeriodType.monthly, now);
+    return _calculatePeriod(PeriodType.daily, now);
   }
 
   PeriodState _calculatePeriod(PeriodType type, DateTime referenceDate) {
@@ -63,11 +63,16 @@ class PeriodNotifier extends Notifier<PeriodState> {
 
   void setType(PeriodType type) {
     if (type == PeriodType.custom) return; // Custom handled separately
-    state = _calculatePeriod(type, state.from);
+    state = _calculatePeriod(type, DateTime.now());
   }
 
   void setToday() {
     state = _calculatePeriod(state.type, DateTime.now());
+  }
+
+  void setDate(DateTime date) {
+    if (state.type == PeriodType.custom) return;
+    state = _calculatePeriod(state.type, date);
   }
 
   void previous() {

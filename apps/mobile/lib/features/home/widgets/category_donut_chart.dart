@@ -41,14 +41,29 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
     
     for (final exp in expenses) {
       if (exp.categoryId != null) {
-        categoryTotals[exp.categoryId!] = (categoryTotals[exp.categoryId!] ?? 0) + exp.amountBase;
-        totalSpent += exp.amountBase;
+        final amt = exp.amountBase.abs(); // Ensure positive for chart rendering
+        categoryTotals[exp.categoryId!] = (categoryTotals[exp.categoryId!] ?? 0) + amt;
+        totalSpent += amt;
       }
     }
 
     // Sort to handle colors consistently
     final sortedEntries = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Largest Remainder Method to ensure rounded percentages sum exactly to 100%
+    final exactPercentages = sortedEntries.map((e) => totalSpent > 0 ? (e.value / totalSpent * 100) : 0.0).toList();
+    final intPercentages = exactPercentages.map((e) => e.floor()).toList();
+    
+    if (totalSpent > 0 && sortedEntries.isNotEmpty) {
+      int remainder = 100 - intPercentages.fold(0, (sum, val) => sum + val);
+      final indices = List.generate(exactPercentages.length, (i) => i);
+      indices.sort((a, b) => (exactPercentages[b] - intPercentages[b]).compareTo(exactPercentages[a] - intPercentages[a]));
+      
+      for (int i = 0; i < remainder && i < indices.length; i++) {
+        intPercentages[indices[i]]++;
+      }
+    }
 
     // Fallback colors if category doesn't have one
     final fallbackColors = [
@@ -64,6 +79,7 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
       final isTouched = i == _touchedIndex;
       final radius = isTouched ? 60.0 : 50.0;
       final fontSize = isTouched ? 16.0 : 12.0;
+      final displayPercent = intPercentages[i];
 
       final category = categories.where((c) => c.id == entry.key).firstOrNull;
       
@@ -78,7 +94,7 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
         PieChartSectionData(
           color: catColor,
           value: entry.value,
-          title: '${(entry.value / totalSpent * 100).toStringAsFixed(0)}%',
+          title: displayPercent > 0 ? '$displayPercent%' : '', // Hide 0% labels
           radius: radius,
           titleStyle: TextStyle(
             fontSize: fontSize,
@@ -131,7 +147,7 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
                     style: theme.textTheme.labelMedium,
                   ),
                   Text(
-                    totalSpent.toStringAsFixed(0), // Normally formatted with currency
+                    totalSpent.toStringAsFixed(2), // Normally formatted with currency
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
