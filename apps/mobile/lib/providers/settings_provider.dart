@@ -15,11 +15,11 @@ class SettingsProvider extends ChangeNotifier {
   ThemeData get themeData {
     switch (_themeMode) {
       case ThemeModeOption.light:
-        return AppTheme.lightTheme;
+        return AppTheme.light;
       case ThemeModeOption.dark:
-        return AppTheme.darkTheme;
+        return AppTheme.dark;
       case ThemeModeOption.system:
-        return AppTheme.lightTheme; // Will be overridden by builder
+        return AppTheme.light; // Will be overridden by builder
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 /// PRD §20 — Transactions table (unified: expense, income, exchange)
+@DataClassName('TransactionData')
 class Transactions extends Table {
   TextColumn get id => text()();
   TextColumn get transactionType => text().named('transaction_type')();
@@ -28,6 +29,7 @@ class Transactions extends Table {
 }
 
 /// PRD §20 — Categories table
+@DataClassName('CategoryData')
 class Categories extends Table {
   TextColumn get id => text()();
   TextColumn get name => text().withLength(max: 50)();
@@ -44,6 +46,7 @@ class Categories extends Table {
 }
 
 /// PRD §20 — Budgets table
+@DataClassName('BudgetData')
 class Budgets extends Table {
   TextColumn get id => text()();
   TextColumn get scope => text().withLength(max: 10)();
@@ -64,6 +67,7 @@ class Budgets extends Table {
 }
 
 /// PRD §20 — Exchange Rates cache
+@DataClassName('ExchangeRateData')
 class ExchangeRates extends Table {
   TextColumn get id => text()();
   TextColumn get baseCurrency => text().named('base_currency').withLength(max: 3)();
@@ -78,6 +82,7 @@ class ExchangeRates extends Table {
 }
 
 /// PRD §20 — Currency Balances (derived running balance)
+@DataClassName('CurrencyBalanceData')
 class CurrencyBalances extends Table {
   TextColumn get id => text()();
   TextColumn get currency => text().withLength(max: 3)();
@@ -89,6 +94,7 @@ class CurrencyBalances extends Table {
 }
 
 /// PRD §20 — Sync Queue (pending sync operations)
+@DataClassName('SyncQueueData')
 class SyncQueue extends Table {
   TextColumn get id => text()();
   TextColumn get recordType => text().named('record_type')();
@@ -104,6 +110,7 @@ class SyncQueue extends Table {
 }
 
 /// PRD §20 — Settings (key-value store)
+@DataClassName('SettingData')
 class Settings extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();
