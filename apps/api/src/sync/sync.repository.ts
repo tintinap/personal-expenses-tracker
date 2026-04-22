@@ -9,13 +9,19 @@ export class SyncRepository {
     const [transactions, categories, budgets] = await Promise.all([
       this.prisma.transaction.findMany({
         where: { userId, updatedAt: { gt: lastSync } },
+        take: 2000,
         include: { category: true },
+        orderBy: { updatedAt: 'asc' },
       }),
       this.prisma.category.findMany({
         where: { userId, updatedAt: { gt: lastSync } },
+        take: 2000,
+        orderBy: { updatedAt: 'asc' },
       }),
       this.prisma.budget.findMany({
         where: { userId, updatedAt: { gt: lastSync } },
+        take: 2000,
+        orderBy: { updatedAt: 'asc' },
       }),
     ]);
     return { transactions, categories, budgets };

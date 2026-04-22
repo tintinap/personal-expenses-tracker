@@ -1,11 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SyncRepository } from './sync.repository';
+import { BudgetAlertsService } from '../budgets/budget-alerts.service';
 
 @Injectable()
 export class SyncService {
   private readonly logger = new Logger(SyncService.name);
 
-  constructor(private readonly repository: SyncRepository) {}
+  constructor(
+    private readonly repository: SyncRepository,
+    private readonly budgetAlerts: BudgetAlertsService,
+  ) {}
 
   /**
    * Process push from mobile: handle insert/update/delete for each record.
@@ -50,6 +54,13 @@ export class SyncService {
           error: error.message,
         });
       }
+    }
+
+    // Evaluate budgets after successfully processing a batch
+    if (accepted > 0) {
+      await this.budgetAlerts.evaluateUserBudgets(userId).catch((err) => {
+        this.logger.error(`Failed to evaluate budgets: ${err.message}`);
+      });
     }
 
     return {

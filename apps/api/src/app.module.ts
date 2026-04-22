@@ -7,6 +7,9 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { BudgetsModule } from './budgets/budgets.module';
 import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { SyncModule } from './sync/sync.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { SheetsModule } from './sheets/sheets.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -18,6 +21,9 @@ import { SyncModule } from './sync/sync.module';
     BudgetsModule,
     ExchangeRatesModule,
     SyncModule,
+    NotificationsModule,
+    SheetsModule,
+    ExportModule,
   ],
 })
 export class AppModule {}
