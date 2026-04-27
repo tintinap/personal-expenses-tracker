@@ -161,15 +161,20 @@ final currencyBalancesProvider = StreamProvider<List<CurrencyBalanceData>>((ref)
   return dao.watchBalances();
 });
 
+/// PRD §21 — Base Currency Provider (Default)
+final baseCurrencyProvider = Provider<String>((ref) => 'AUD');
+
 /// PRD §21 — Dashboard Summary Provider
 class DashboardSummary {
   final double totalSpent;
+  final double netIncome;
   final String topCategoryName;
   final double topCategoryAmount;
   final int transactionCount;
 
   const DashboardSummary({
     required this.totalSpent,
+    required this.netIncome,
     required this.topCategoryName,
     required this.topCategoryAmount,
     required this.transactionCount,
@@ -177,25 +182,32 @@ class DashboardSummary {
 }
 
 final dashboardSummaryProvider = Provider<DashboardSummary>((ref) {
-  final expenses = ref.watch(expenseListProvider);
+  final baseCurrency = ref.watch(baseCurrencyProvider);
+  final transactions = ref.watch(transactionListProvider).valueOrNull ?? [];
   final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
+
+  final baseTransactions = transactions.where((t) => t.originalCurrency == baseCurrency);
+  final expenses = baseTransactions.where((t) => t.transactionType == 'expense').toList();
+  final incomes = baseTransactions.where((t) => t.transactionType == 'currency_income' || t.transactionType == 'currency_exchange_in').toList();
   
+  double totalSpent = expenses.fold(0.0, (sum, e) => sum + e.originalAmount.abs());
+  double totalIncome = incomes.fold(0.0, (sum, i) => sum + i.originalAmount.abs());
+  double netIncome = totalIncome - totalSpent;
+
   if (expenses.isEmpty) {
-    return const DashboardSummary(
+    return DashboardSummary(
       totalSpent: 0,
+      netIncome: netIncome,
       topCategoryName: 'None',
       topCategoryAmount: 0,
       transactionCount: 0,
     );
   }
 
-  double totalSpent = 0;
   final categoryTotals = <String, double>{};
-
   for (final expense in expenses) {
-    totalSpent += expense.amountBase;
     if (expense.categoryId != null) {
-      categoryTotals[expense.categoryId!] = (categoryTotals[expense.categoryId!] ?? 0) + expense.amountBase;
+      categoryTotals[expense.categoryId!] = (categoryTotals[expense.categoryId!] ?? 0) + expense.originalAmount.abs();
     }
   }
 
@@ -217,6 +229,7 @@ final dashboardSummaryProvider = Provider<DashboardSummary>((ref) {
 
   return DashboardSummary(
     totalSpent: totalSpent,
+    netIncome: netIncome,
     topCategoryName: topCategoryName,
     topCategoryAmount: maxAmount,
     transactionCount: expenses.length,

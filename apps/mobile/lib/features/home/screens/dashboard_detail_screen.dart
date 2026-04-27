@@ -18,8 +18,10 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final baseCurrency = ref.watch(baseCurrencyProvider);
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
     final expenses = ref.watch(expenseListProvider);
+    final transactions = ref.watch(transactionListProvider).valueOrNull ?? [];
 
     // Get unique categories actively used in current period's expenses
     final activeCategoryIds = expenses
@@ -42,41 +44,75 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Builder(
                 builder: (context) {
-                  final filteredExpenses = expenses.where((e) => !_excludedCategoryIds.contains(e.categoryId));
-                  final totalSpent = filteredExpenses.fold(0.0, (sum, e) => sum + e.amountBase);
+                  // Filtering strictly to the user's base currency because foreign transactions currently have an un-converted amountBase in the local DB.
+                  final filteredExpenses = expenses.where((e) => 
+                      !_excludedCategoryIds.contains(e.categoryId) && 
+                      e.originalCurrency == baseCurrency
+                  );
+                  final totalSpent = filteredExpenses.fold(0.0, (sum, e) => sum + e.originalAmount.abs());
                   
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total Spent',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
+                  final totalIncome = transactions
+                      .where((t) => (t.transactionType == 'currency_income' || t.transactionType == 'currency_exchange_in') && t.originalCurrency == baseCurrency)
+                      .fold(0.0, (sum, t) => sum + t.originalAmount.abs());
+                      
+                  final netIncome = totalIncome - totalSpent;
+
+                  final categoryTotals = <String, double>{};
+                  for (final expense in filteredExpenses) {
+                    if (expense.categoryId != null) {
+                      categoryTotals[expense.categoryId!] = (categoryTotals[expense.categoryId!] ?? 0) + expense.amountBase.abs();
+                    }
+                  }
+                  
+                  String topCategoryId = '';
+                  double maxAmount = 0;
+                  categoryTotals.forEach((id, amount) {
+                    if (amount > maxAmount) {
+                      maxAmount = amount;
+                      topCategoryId = id;
+                    }
+                  });
+                  
+                  final topCategoryName = categories.where((c) => c.id == topCategoryId).firstOrNull?.name ?? 'None';
+                  
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildSummaryCard(
+                              context, 
+                              'Total Spent', 
+                              '$baseCurrency ${totalSpent.toStringAsFixed(2)}', 
+                              '${filteredExpenses.length} transactions',
+                              theme.colorScheme.primaryContainer,
+                              theme.colorScheme.onPrimaryContainer,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '\$${totalSpent.toStringAsFixed(2)}',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildSummaryCard(
+                              context, 
+                              'Net Income', 
+                              '$baseCurrency ${netIncome.toStringAsFixed(2)}', 
+                              'Total Net Flow',
+                              theme.colorScheme.tertiaryContainer,
+                              theme.colorScheme.onTertiaryContainer,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${filteredExpenses.length} transactions',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8),
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _buildSummaryCard(
+                        context,
+                        'Top Category',
+                        topCategoryName,
+                        '$baseCurrency ${maxAmount.toStringAsFixed(2)} spent',
+                        theme.colorScheme.secondaryContainer,
+                        theme.colorScheme.onSecondaryContainer,
+                        isFullWidth: true,
+                      ),
+                    ],
                   );
                 }
               ),
@@ -181,4 +217,47 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
       ),
     );
   }
+
+  Widget _buildSummaryCard(BuildContext context, String title, String value, String subtitle, Color bgColor, Color textColor, {bool isFullWidth = false}) {
+    final theme = Theme.of(context);
+    return Container(
+      width: isFullWidth ? double.infinity : null,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: textColor.withOpacity(0.8),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
 }
+

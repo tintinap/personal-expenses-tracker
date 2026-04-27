@@ -106,6 +106,16 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
       colorIndex++;
     }
 
+    String centerLabel = 'Total';
+    String centerValue = totalSpent.toStringAsFixed(2);
+
+    if (_touchedIndex >= 0 && _touchedIndex < sortedEntries.length) {
+      final touchedEntry = sortedEntries[_touchedIndex];
+      final touchedCategory = categories.where((c) => c.id == touchedEntry.key).firstOrNull;
+      centerLabel = touchedCategory?.name ?? 'Unknown';
+      centerValue = touchedEntry.value.toStringAsFixed(2);
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final chartSize = constraints.maxHeight != double.infinity 
@@ -138,16 +148,17 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
                   sections: sections,
                 ),
               ),
-              // Total spent in center
+              // Dynamic center text
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Total',
+                    centerLabel,
                     style: theme.textTheme.labelMedium,
+                    textAlign: TextAlign.center,
                   ),
                   Text(
-                    totalSpent.toStringAsFixed(2), // Normally formatted with currency
+                    centerValue,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
