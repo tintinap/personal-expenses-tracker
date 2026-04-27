@@ -7,18 +7,33 @@ import 'package:path/path.dart' as p;
 
 import 'tables.dart';
 
+import 'daos/transaction_dao.dart';
+import 'daos/category_dao.dart';
+import 'daos/budget_dao.dart';
+import 'daos/exchange_rate_dao.dart';
+import 'daos/currency_balance_dao.dart';
+
 part 'database.g.dart';
 
 /// PRD §5 — Drift database: offline source of truth on device
-@DriftDatabase(tables: [
-  Transactions,
-  Categories,
-  Budgets,
-  ExchangeRates,
-  CurrencyBalances,
-  SyncQueue,
-  Settings,
-])
+@DriftDatabase(
+  tables: [
+    Transactions,
+    Categories,
+    Budgets,
+    ExchangeRates,
+    CurrencyBalances,
+    SyncQueue,
+    Settings,
+  ],
+  daos: [
+    TransactionDao,
+    CategoryDao,
+    BudgetDao,
+    ExchangeRateDao,
+    CurrencyBalanceDao,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 

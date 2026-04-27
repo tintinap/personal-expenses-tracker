@@ -7,7 +7,7 @@
 [tools]
 node = "20"          # Next.js web + NestJS API + Prisma CLI
 pnpm = "10"          # Node package manager
-flutter = "3.29"     # Mobile app (iOS & Android)
+flutter = "3.41.7"   # Mobile app (iOS & Android) — 3.32+ required for iOS 26 debug support
 
 [env]
 COREPACK_ENABLE_STRICT = "0"

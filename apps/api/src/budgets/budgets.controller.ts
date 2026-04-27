@@ -12,90 +12,44 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PrismaService } from '../prisma/prisma.service';
+import { BudgetsService } from './budgets.service';
+import { CreateBudgetDto, UpdateBudgetDto } from './budgets.model';
 
 @Controller('budgets')
 @UseGuards(JwtAuthGuard)
 export class BudgetsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly budgetsService: BudgetsService) {}
 
   @Get()
   async findAll(@Req() req: any) {
-    return this.prisma.budget.findMany({
-      where: { userId: req.user.userId },
-      include: { category: true },
-      orderBy: [{ scope: 'asc' }, { createdAt: 'desc' }],
-    });
+    return this.budgetsService.findAll(req.user.userId);
   }
 
   @Get(':id')
   async findOne(@Req() req: any, @Param('id') id: string) {
-    return this.prisma.budget.findFirstOrThrow({
-      where: { id, userId: req.user.userId },
-      include: { category: true },
-    });
+    return this.budgetsService.findOne(id, req.user.userId);
   }
 
   @Post()
   async create(
     @Req() req: any,
-    @Body()
-    body: {
-      scope: string;
-      categoryId?: string;
-      amountBase: number;
-      periodType: string;
-      startDate: string;
-      endDate?: string;
-    },
+    @Body() body: CreateBudgetDto,
   ) {
-    return this.prisma.budget.create({
-      data: {
-        userId: req.user.userId,
-        scope: body.scope,
-        categoryId: body.categoryId || null,
-        amountBase: body.amountBase,
-        periodType: body.periodType,
-        startDate: new Date(body.startDate),
-        endDate: body.endDate ? new Date(body.endDate) : null,
-      },
-      include: { category: true },
-    });
+    return this.budgetsService.create(req.user.userId, body);
   }
 
   @Patch(':id')
   async update(
     @Req() req: any,
     @Param('id') id: string,
-    @Body()
-    body: {
-      amountBase?: number;
-      periodType?: string;
-      startDate?: string;
-      endDate?: string;
-      isActive?: boolean;
-    },
+    @Body() body: UpdateBudgetDto,
   ) {
-    return this.prisma.budget.update({
-      where: { id, userId: req.user.userId },
-      data: {
-        ...(body.amountBase !== undefined && { amountBase: body.amountBase }),
-        ...(body.periodType && { periodType: body.periodType }),
-        ...(body.startDate && { startDate: new Date(body.startDate) }),
-        ...(body.endDate !== undefined && {
-          endDate: body.endDate ? new Date(body.endDate) : null,
-        }),
-        ...(body.isActive !== undefined && { isActive: body.isActive }),
-      },
-      include: { category: true },
-    });
+    return this.budgetsService.update(id, req.user.userId, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Req() req: any, @Param('id') id: string) {
-    await this.prisma.budget.delete({
-      where: { id, userId: req.user.userId },
-    });
+    await this.budgetsService.remove(id, req.user.userId);
   }
 }

@@ -1,11 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { SyncRepository } from './sync.repository';
+import { BudgetAlertsService } from '../budgets/budget-alerts.service';
 
 @Injectable()
 export class SyncService {
   private readonly logger = new Logger(SyncService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly repository: SyncRepository,
+    private readonly budgetAlerts: BudgetAlertsService,
+  ) {}
 
   /**
    * Process push from mobile: handle insert/update/delete for each record.
@@ -52,6 +56,13 @@ export class SyncService {
       }
     }
 
+    // Evaluate budgets after successfully processing a batch
+    if (accepted > 0) {
+      await this.budgetAlerts.evaluateUserBudgets(userId).catch((err) => {
+        this.logger.error(`Failed to evaluate budgets: ${err.message}`);
+      });
+    }
+
     return {
       accepted,
       conflicts,
@@ -63,23 +74,10 @@ export class SyncService {
    * Process pull: return all records updated after the given timestamp.
    */
   async processPull(userId: string, lastSync: Date) {
-    const [transactions, categories, budgets] = await Promise.all([
-      this.prisma.transaction.findMany({
-        where: { userId, updatedAt: { gt: lastSync } },
-        include: { category: true },
-      }),
-      this.prisma.category.findMany({
-        where: { userId, updatedAt: { gt: lastSync } },
-      }),
-      this.prisma.budget.findMany({
-        where: { userId, updatedAt: { gt: lastSync } },
-      }),
-    ]);
+    const data = await this.repository.pullRecords(userId, lastSync);
 
     return {
-      transactions,
-      categories,
-      budgets,
+      ...data,
       serverTimestamp: new Date().toISOString(),
       conflicts: [],
     };
@@ -94,69 +92,58 @@ export class SyncService {
     switch (operation) {
       case 'insert': {
         // UUID deduplication — check if record already exists
-        const existing = await this.prisma.transaction.findUnique({
-          where: { id: recordId },
-        });
+        const existing = await this.repository.findTransactionById(recordId);
         if (existing) return; // Already synced
 
-        await this.prisma.transaction.create({
-          data: {
-            id: recordId,
-            userId,
-            transactionType: payload.transactionType,
-            amountBase: payload.amountBase,
-            originalAmount: payload.originalAmount,
-            originalCurrency: payload.originalCurrency,
-            exchangeRate: payload.exchangeRate,
-            rateDate: new Date(payload.rateDate),
-            rateEstimated: payload.rateEstimated || false,
-            rateSource: payload.rateSource || 'frankfurter',
-            exchangeEventId: payload.exchangeEventId || null,
-            categoryId: payload.categoryId || null,
-            note: payload.note || null,
-            sourceLabel: payload.sourceLabel || null,
-            transactionDate: new Date(payload.transactionDate),
-            isRecurring: payload.isRecurring || false,
-            recurrenceType: payload.recurrenceType || null,
-          },
+        await this.repository.createTransaction({
+          id: recordId,
+          userId,
+          transactionType: payload.transactionType,
+          amountBase: payload.amountBase,
+          originalAmount: payload.originalAmount,
+          originalCurrency: payload.originalCurrency,
+          exchangeRate: payload.exchangeRate,
+          rateDate: new Date(payload.rateDate),
+          rateEstimated: payload.rateEstimated || false,
+          rateSource: payload.rateSource || 'frankfurter',
+          exchangeEventId: payload.exchangeEventId || null,
+          categoryId: payload.categoryId || null,
+          note: payload.note || null,
+          sourceLabel: payload.sourceLabel || null,
+          transactionDate: new Date(payload.transactionDate),
+          isRecurring: payload.isRecurring || false,
+          recurrenceType: payload.recurrenceType || null,
         });
         break;
       }
 
       case 'update': {
         // Last-write-wins: compare updatedAt
-        const existing = await this.prisma.transaction.findUnique({
-          where: { id: recordId },
-        });
+        const existing = await this.repository.findTransactionById(recordId);
 
         if (existing) {
           const clientUpdated = new Date(payload.updatedAt);
           if (clientUpdated > existing.updatedAt) {
-            await this.prisma.transaction.update({
-              where: { id: recordId },
-              data: {
-                amountBase: payload.amountBase,
-                originalAmount: payload.originalAmount,
-                originalCurrency: payload.originalCurrency,
-                exchangeRate: payload.exchangeRate,
-                rateDate: new Date(payload.rateDate),
-                rateEstimated: payload.rateEstimated || false,
-                rateSource: payload.rateSource || 'frankfurter',
-                categoryId: payload.categoryId || null,
-                note: payload.note || null,
-                transactionDate: new Date(payload.transactionDate),
-              },
+            await this.repository.updateTransaction(recordId, {
+              amountBase: payload.amountBase,
+              originalAmount: payload.originalAmount,
+              originalCurrency: payload.originalCurrency,
+              exchangeRate: payload.exchangeRate,
+              rateDate: new Date(payload.rateDate),
+              rateEstimated: payload.rateEstimated || false,
+              rateSource: payload.rateSource || 'frankfurter',
+              categoryId: payload.categoryId || null,
+              note: payload.note || null,
+              transactionDate: new Date(payload.transactionDate),
             });
           } else {
             // Server version is newer — log conflict
-            await this.prisma.conflictLog.create({
-              data: {
-                userId,
-                recordType: 'transaction',
-                recordId,
-                winningVersion: existing as any,
-                losingVersion: payload,
-              },
+            await this.repository.logConflict({
+              userId,
+              recordType: 'transaction',
+              recordId,
+              winningVersion: existing as any,
+              losingVersion: payload,
             });
           }
         }
@@ -164,10 +151,7 @@ export class SyncService {
       }
 
       case 'delete': {
-        await this.prisma.transaction.update({
-          where: { id: recordId },
-          data: { deletedAt: new Date() },
-        });
+        await this.repository.softDeleteTransaction(recordId);
         break;
       }
     }
@@ -181,39 +165,32 @@ export class SyncService {
 
     switch (operation) {
       case 'insert': {
-        const existing = await this.prisma.category.findUnique({
-          where: { id: recordId },
-        });
+        const existing = await this.repository.findCategoryById(recordId);
         if (existing) return;
 
-        await this.prisma.category.create({
-          data: {
-            id: recordId,
-            userId,
-            name: payload.name,
-            colourHex: payload.colourHex,
-            isDefault: payload.isDefault || false,
-            isHidden: payload.isHidden || false,
-            sortOrder: payload.sortOrder || 0,
-          },
+        await this.repository.createCategory({
+          id: recordId,
+          userId,
+          name: payload.name,
+          colourHex: payload.colourHex,
+          isDefault: payload.isDefault || false,
+          isHidden: payload.isHidden || false,
+          sortOrder: payload.sortOrder || 0,
         });
         break;
       }
 
       case 'update': {
-        await this.prisma.category.update({
-          where: { id: recordId },
-          data: {
-            name: payload.name,
-            colourHex: payload.colourHex,
-            isHidden: payload.isHidden,
-          },
+        await this.repository.updateCategory(recordId, {
+          name: payload.name,
+          colourHex: payload.colourHex,
+          isHidden: payload.isHidden,
         });
         break;
       }
 
       case 'delete': {
-        await this.prisma.category.delete({ where: { id: recordId } });
+        await this.repository.deleteCategory(recordId);
         break;
       }
     }
@@ -227,45 +204,38 @@ export class SyncService {
 
     switch (operation) {
       case 'insert': {
-        const existing = await this.prisma.budget.findUnique({
-          where: { id: recordId },
-        });
+        const existing = await this.repository.findBudgetById(recordId);
         if (existing) return;
 
-        await this.prisma.budget.create({
-          data: {
-            id: recordId,
-            userId,
-            scope: payload.scope,
-            categoryId: payload.categoryId || null,
-            amountBase: payload.amountBase,
-            periodType: payload.periodType,
-            startDate: new Date(payload.startDate),
-            endDate: payload.endDate ? new Date(payload.endDate) : null,
-            isActive: payload.isActive ?? true,
-          },
+        await this.repository.createBudget({
+          id: recordId,
+          userId,
+          scope: payload.scope,
+          categoryId: payload.categoryId || null,
+          amountBase: payload.amountBase,
+          periodType: payload.periodType,
+          startDate: new Date(payload.startDate),
+          endDate: payload.endDate ? new Date(payload.endDate) : null,
+          isActive: payload.isActive ?? true,
         });
         break;
       }
 
       case 'update': {
-        await this.prisma.budget.update({
-          where: { id: recordId },
-          data: {
-            amountBase: payload.amountBase,
-            periodType: payload.periodType,
-            startDate: new Date(payload.startDate),
-            endDate: payload.endDate ? new Date(payload.endDate) : null,
-            isActive: payload.isActive,
-            notified80: payload.notified80 ?? false,
-            notified100: payload.notified100 ?? false,
-          },
+        await this.repository.updateBudget(recordId, {
+          amountBase: payload.amountBase,
+          periodType: payload.periodType,
+          startDate: new Date(payload.startDate),
+          endDate: payload.endDate ? new Date(payload.endDate) : null,
+          isActive: payload.isActive,
+          notified80: payload.notified80 ?? false,
+          notified100: payload.notified100 ?? false,
         });
         break;
       }
 
       case 'delete': {
-        await this.prisma.budget.delete({ where: { id: recordId } });
+        await this.repository.deleteBudget(recordId);
         break;
       }
     }

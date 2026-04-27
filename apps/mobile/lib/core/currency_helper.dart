@@ -14,6 +14,7 @@ enum CurrencyCode {
   inr('INR', 'Indian Rupee', '₹'),
   sgd('SGD', 'Singapore Dollar', 'S\$'),
   krw('KRW', 'South Korean Won', '₩'),
+  vnd('VND', 'Vietnamese Dong', '₫'),
   ;
 
   final String code;
