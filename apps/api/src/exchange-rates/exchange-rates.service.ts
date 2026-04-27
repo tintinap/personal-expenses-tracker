@@ -68,4 +68,13 @@ export class ExchangeRatesService {
       throw error;
     }
   }
+
+  /**
+   * Accept a rate from the mobile client and cache it in Postgres.
+   * Used when the mobile fetched directly from Frankfurter (BE was down).
+   */
+  async cacheRate(from: string, to: string, date: string, rate: number) {
+    await this.repository.upsertRate(from, to, date, rate, 'mobile_sync');
+    return { success: true, date };
+  }
 }

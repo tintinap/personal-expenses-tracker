@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/database/database.dart';
 import '../../../core/providers/database_providers.dart';
 import '../../shared/providers/shared_providers.dart';
+import '../providers/exchange_rate_providers.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'currency_prefix_dropdown.dart';
 
@@ -45,38 +46,10 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
   String? _lastEditedField;
   // Once the user manually types a rate, it becomes locked
   bool _isRateLocked = false;
-
-  void _delete() async {
-    final tx = widget.initialTransaction;
-    if (tx == null) return;
-    
-    final dao = ref.read(transactionDaoProvider);
-    final db = ref.read(databaseProvider);
-    final balanceDao = ref.read(currencyBalanceDaoProvider);
-    
-    await dao.softDelete(tx.id);
-
-    // Reverse the balance adjustment
-    if (tx.transactionType == 'expense') {
-      await balanceDao.adjustBalance(tx.originalCurrency, tx.originalAmount); // add back
-    } else if (tx.transactionType == 'currency_income') {
-      await balanceDao.adjustBalance(tx.originalCurrency, -tx.originalAmount); // remove
-    } else if (tx.transactionType == 'currency_exchange_out') {
-      await balanceDao.adjustBalance(tx.originalCurrency, tx.originalAmount); // add back
-    } else if (tx.transactionType == 'currency_exchange_in') {
-      await balanceDao.adjustBalance(tx.originalCurrency, -tx.originalAmount); // remove
-    }
-    
-    await db.addToSyncQueue(
-      id: const Uuid().v4(),
-      recordType: 'transaction',
-      recordId: tx.id,
-      operation: 'delete',
-      payload: '{}',
-    );
-    
-    if (mounted) Navigator.pop(context);
-  }
+  // Loading state for the "Get Rate" button
+  bool _isFetchingRate = false;
+  // Error message for the rate fetch
+  String? _rateError;
 
   @override
   void initState() {
@@ -153,7 +126,7 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       final toAmount = double.tryParse(_exchangeToAmountController.text);
       if (toAmount != null && toAmount > 0) {
         _exchangeRateController.removeListener(_onRateChanged);
-        _exchangeRateController.text = (fromAmount / toAmount).toStringAsFixed(6);
+        _exchangeRateController.text = (fromAmount / toAmount).toStringAsFixed(2);
         _exchangeRateController.addListener(_onRateChanged);
       }
     }
@@ -176,7 +149,7 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       final fromAmount = double.tryParse(_amountController.text);
       if (fromAmount != null && fromAmount > 0) {
         _exchangeRateController.removeListener(_onRateChanged);
-        _exchangeRateController.text = (fromAmount / toAmount).toStringAsFixed(6);
+        _exchangeRateController.text = (fromAmount / toAmount).toStringAsFixed(2);
         _exchangeRateController.addListener(_onRateChanged);
       }
     }
@@ -198,6 +171,56 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       _amountController.removeListener(_onFromAmountChanged);
       _amountController.text = (toAmount * rate).toStringAsFixed(2);
       _amountController.addListener(_onFromAmountChanged);
+    }
+  }
+
+  /// Fetches the recommended exchange rate via the 3-tier strategy:
+  /// Local DB → Backend Server → Direct Frankfurter API
+  Future<void> _fetchRecommendedRate() async {
+    if (_fromCurrency == _toCurrency) return;
+
+    setState(() {
+      _isFetchingRate = true;
+      _rateError = null;
+    });
+
+    try {
+      final repo = ref.read(exchangeRateRepositoryProvider);
+
+      // The UI rate = "1 _toCurrency = ? _fromCurrency"
+      // So baseCurrency = _toCurrency, quoteCurrency = _fromCurrency
+      final result = await repo.getRecommendedRate(
+        baseCurrency: _toCurrency,
+        quoteCurrency: _fromCurrency,
+        date: _selectedDate,
+      );
+
+      if (!mounted) return;
+
+      // Fill the rate field and lock it
+      _exchangeRateController.removeListener(_onRateChanged);
+      _exchangeRateController.text = result.rate.toStringAsFixed(2);
+      _exchangeRateController.addListener(_onRateChanged);
+      _isRateLocked = true;
+
+      // Recalculate To amount if From amount exists
+      _recalculateFromAmount();
+
+      setState(() => _isFetchingRate = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Rate loaded from ${result.source}'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isFetchingRate = false;
+        _rateError = 'Something went wrong. Please try again.';
+      });
     }
   }
 
@@ -341,38 +364,6 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.initialTransaction != null)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Delete Transaction'),
-                          content: const Text('Are you sure you want to delete this transaction?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancel'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _delete();
-                              },
-                              child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
             SegmentedButton<TransactionTabType>(
               segments: const [
                 ButtonSegment(value: TransactionTabType.expense, label: Text('Expense')),
@@ -407,16 +398,44 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
             
             if (_selectedTab == TransactionTabType.exchange) ...[
               const SizedBox(height: 12),
-              // Exchange Rate field
-              TextField(
-                controller: _exchangeRateController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Exchange Rate',
-                  hintText: '1 $_toCurrency = ? $_fromCurrency',
-                  prefixIcon: const Icon(Icons.swap_horiz),
-                  helperText: 'How many $_fromCurrency per 1 $_toCurrency',
-                ),
+              // Exchange Rate field with "Get Rate" button
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _exchangeRateController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: 'Exchange Rate',
+                        hintText: '1 $_toCurrency = ? $_fromCurrency',
+                        prefixIcon: const Icon(Icons.swap_horiz),
+                        helperText: 'How many $_fromCurrency per 1 $_toCurrency',
+                        errorText: _rateError,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: _isFetchingRate
+                        ? const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton.filled(
+                            onPressed: (_fromCurrency == _toCurrency)
+                                ? null
+                                : _fetchRecommendedRate,
+                            icon: const Icon(Icons.auto_awesome),
+                            tooltip: 'Get recommended rate',
+                          ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               TextField(
