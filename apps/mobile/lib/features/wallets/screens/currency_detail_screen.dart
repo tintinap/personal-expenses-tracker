@@ -10,9 +10,7 @@ import '../../transactions/widgets/transaction_bottom_sheet.dart';
 
 final currencyTransactionsProvider = StreamProvider.family<List<TransactionData>, String>((ref, currency) {
   final dao = ref.watch(transactionDaoProvider);
-  return Stream.fromFuture(dao.getByCurrency(currency)); 
-  // Ideally this would be watchByCurrency in the dao, but we'll use Stream.fromFuture with getByCurrency for simplicity, 
-  // or add a watch method to the DAO later
+  return dao.watchByCurrency(currency);
 });
 
 class CurrencyDetailScreen extends ConsumerWidget {

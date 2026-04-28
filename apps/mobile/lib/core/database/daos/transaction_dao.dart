@@ -49,6 +49,15 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  /// Watch all transactions for a specific currency (reactive)
+  Stream<List<TransactionData>> watchByCurrency(String currency) {
+    return (select(transactions)
+          ..where((t) => t.originalCurrency.equals(currency))
+          ..where((t) => t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.transactionDate)]))
+        .watch();
+  }
+
   /// Get a single transaction by ID
   Future<TransactionData?> getById(String id) {
     return (select(transactions)..where((t) => t.id.equals(id)))
