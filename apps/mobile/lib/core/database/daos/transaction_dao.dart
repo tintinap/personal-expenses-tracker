@@ -58,6 +58,15 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// Get the paired exchange transaction (the other side of a currency exchange)
+  Future<TransactionData?> getPairedTransaction(String exchangeEventId, String excludeId) {
+    return (select(transactions)
+          ..where((t) => t.exchangeEventId.equals(exchangeEventId))
+          ..where((t) => t.id.equals(excludeId).not())
+          ..where((t) => t.deletedAt.isNull()))
+        .getSingleOrNull();
+  }
+
   /// Get a single transaction by ID
   Future<TransactionData?> getById(String id) {
     return (select(transactions)..where((t) => t.id.equals(id)))

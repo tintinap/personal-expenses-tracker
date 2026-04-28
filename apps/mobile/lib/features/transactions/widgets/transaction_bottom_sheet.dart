@@ -13,15 +13,16 @@ enum TransactionTabType { expense, income, exchange }
 
 class TransactionBottomSheet extends ConsumerStatefulWidget {
   final TransactionData? initialTransaction;
+  final TransactionData? pairedTransaction;
 
-  const TransactionBottomSheet({super.key, this.initialTransaction});
+  const TransactionBottomSheet({super.key, this.initialTransaction, this.pairedTransaction});
 
-  static Future<void> show(BuildContext context, {TransactionData? transaction}) {
+  static Future<void> show(BuildContext context, {TransactionData? transaction, TransactionData? pairedTransaction}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => TransactionBottomSheet(initialTransaction: transaction),
+      builder: (context) => TransactionBottomSheet(initialTransaction: transaction, pairedTransaction: pairedTransaction),
     );
   }
 
@@ -56,18 +57,40 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
     super.initState();
     if (widget.initialTransaction != null) {
       final tx = widget.initialTransaction!;
-      _amountController.text = tx.originalAmount.toString();
       _noteController.text = tx.note ?? '';
       _selectedDate = tx.transactionDate;
-      _fromCurrency = tx.originalCurrency;
       _selectedCategoryId = tx.categoryId;
       
       if (tx.transactionType == 'expense') {
         _selectedTab = TransactionTabType.expense;
+        _amountController.text = tx.originalAmount.toString();
+        _fromCurrency = tx.originalCurrency;
       } else if (tx.transactionType == 'currency_income') {
         _selectedTab = TransactionTabType.income;
+        _amountController.text = tx.originalAmount.toString();
+        _fromCurrency = tx.originalCurrency;
       } else {
+        // Exchange transaction — determine out/in sides
         _selectedTab = TransactionTabType.exchange;
+        final paired = widget.pairedTransaction;
+        final isOut = tx.transactionType == 'currency_exchange_out';
+        final outTx = isOut ? tx : paired;
+        final inTx = isOut ? paired : tx;
+        
+        _fromCurrency = outTx?.originalCurrency ?? tx.originalCurrency;
+        _amountController.text = (outTx?.originalAmount ?? tx.originalAmount).toString();
+        
+        if (inTx != null) {
+          _toCurrency = inTx.originalCurrency;
+          _exchangeToAmountController.text = inTx.originalAmount.toString();
+          
+          // Rate = fromAmount / toAmount (how many from-currency per 1 to-currency)
+          final fromAmt = outTx?.originalAmount ?? tx.originalAmount;
+          if (inTx.originalAmount > 0) {
+            _exchangeRateController.text = (fromAmt / inTx.originalAmount).toStringAsFixed(2);
+            _isRateLocked = true;
+          }
+        }
       }
     }
     _amountController.addListener(_onFromAmountChanged);
@@ -257,10 +280,26 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       if (toAmount == null || toAmount <= 0) return;
 
       final exchangeRate = toAmount / amount;
-      final eventId = const Uuid().v4();
+      final isEditing = widget.initialTransaction != null;
+      
+      // Determine which side is the out and which is the in
+      final initTx = widget.initialTransaction;
+      final pairedTx = widget.pairedTransaction;
+      final isInitOut = initTx?.transactionType == 'currency_exchange_out';
+      
+      // Preserve existing IDs when editing, generate new ones when creating
+      final eventId = isEditing 
+          ? (initTx!.exchangeEventId ?? const Uuid().v4())
+          : const Uuid().v4();
+      final outId = isEditing
+          ? (isInitOut ? initTx!.id : pairedTx?.id ?? const Uuid().v4())
+          : id;
+      final inId = isEditing
+          ? (isInitOut ? pairedTx?.id ?? const Uuid().v4() : initTx!.id)
+          : const Uuid().v4();
       
       final outSide = TransactionsCompanion.insert(
-        id: id,
+        id: outId,
         transactionType: 'currency_exchange_out',
         amountBase: toAmount,
         originalAmount: amount,
@@ -273,7 +312,7 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       );
 
       final inSide = TransactionsCompanion.insert(
-        id: const Uuid().v4(),
+        id: inId,
         transactionType: 'currency_exchange_in',
         amountBase: toAmount,
         originalAmount: toAmount,
@@ -284,13 +323,17 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
         transactionDate: _selectedDate,
         note: Value(_noteController.text),
       );
-      
-      await dao.insertTransaction(outSide);
-      await dao.insertTransaction(inSide);
 
-      // Adjust balances: deduct from source, add to target
-      await balanceDao.adjustBalance(_fromCurrency, -amount);
-      await balanceDao.adjustBalance(_toCurrency, toAmount);
+      if (isEditing) {
+        await dao.updateTransaction(outSide);
+        await dao.updateTransaction(inSide);
+      } else {
+        await dao.insertTransaction(outSide);
+        await dao.insertTransaction(inSide);
+        // Adjust balances only on create
+        await balanceDao.adjustBalance(_fromCurrency, -amount);
+        await balanceDao.adjustBalance(_toCurrency, toAmount);
+      }
       
       if (mounted) Navigator.pop(context);
       return;

@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 
-import '../../../core/database/database.dart';
-import '../../../core/providers/database_providers.dart';
 import '../../shared/providers/shared_providers.dart';
 import '../../shared/widgets/period_selector.dart';
+import '../../shared/widgets/transaction_list_tile.dart';
 import '../widgets/dashboard_summary_cards.dart';
 import '../widgets/running_balance_chips.dart';
 import '../widgets/category_donut_chart.dart';
-import '../../transactions/widgets/transaction_bottom_sheet.dart';
 import '../../auth/widgets/sign_in_banner.dart';
+
 
 /// PRD §6 — Home (Dashboard) Screen
 class HomeScreen extends ConsumerWidget {
@@ -151,11 +149,16 @@ class HomeScreen extends ConsumerWidget {
                 final sortedTransactions = List.of(transactions)
                   ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
 
+                // Filter out exchange_in — the exchange_out tile renders both sides
+                final filtered = sortedTransactions
+                    .where((tx) => tx.transactionType != 'currency_exchange_in')
+                    .toList();
+
                 // Group transactions by date
                 final listItems = [];
                 String? lastDateStr;
                 
-                for (final tx in sortedTransactions) {
+                for (final tx in filtered) {
                   final dateStr = DateFormat.yMMMd().format(tx.transactionDate);
                   if (dateStr != lastDateStr) {
                     listItems.add(dateStr); // Add date header
@@ -194,80 +197,7 @@ class HomeScreen extends ConsumerWidget {
                       }
                       
                       final tx = item;
-                      final isIncome = tx.transactionType == 'currency_income' || 
-                                       tx.transactionType == 'currency_exchange_in';
-                      final color = isIncome ? Colors.green : theme.textTheme.bodyLarge?.color;
-                      final prefix = isIncome ? '+' : '-';
-                      
-                      return Dismissible(
-                        key: ValueKey(tx.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20.0),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        confirmDismiss: (direction) async {
-                          return await showDialog<bool>(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('Delete Transaction'),
-                                content: const Text('Are you sure you want to delete this transaction?'),
-                                actions: <Widget>[
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(true),
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
-                        onDismissed: (direction) async {
-                          final dao = ref.read(transactionDaoProvider);
-                          final db = ref.read(databaseProvider);
-                          await dao.softDelete(tx.id);
-                          await db.addToSyncQueue(
-                            id: const Uuid().v4(),
-                            recordType: 'transaction',
-                            recordId: tx.id,
-                            operation: 'delete',
-                            payload: '{}',
-                          );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Transaction deleted')),
-                            );
-                          }
-                        },
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: theme.colorScheme.primaryContainer,
-                            child: Icon(
-                              isIncome ? Icons.arrow_downward : Icons.shopping_bag,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          title: Text(tx.note?.isNotEmpty == true ? tx.note! : tx.transactionType),
-                          subtitle: Text(DateFormat.jm().format(tx.transactionDate)),
-                          trailing: Text(
-                            '$prefix ${tx.originalCurrency} ${tx.originalAmount.toStringAsFixed(2)}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          onTap: () {
-                            TransactionBottomSheet.show(context, transaction: tx);
-                          },
-                        ),
-                      );
+                      return TransactionListTile(transaction: tx);
                     },
                     childCount: listItems.length,
                   ),
