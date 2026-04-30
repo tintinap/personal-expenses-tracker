@@ -268,6 +268,16 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       return;
     }
 
+    if (_selectedTab == TransactionTabType.expense && _selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a category'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final dao = ref.read(transactionDaoProvider);
     final db = ref.read(databaseProvider);
     final balanceDao = ref.read(currencyBalanceDaoProvider);

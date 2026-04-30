@@ -136,7 +136,10 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      CategoryDonutChart(excludedCategoryIds: _excludedCategoryIds),
+                      CategoryDonutChart(
+                        excludedCategoryIds: _excludedCategoryIds,
+                        filterCurrencies: {baseCurrency},
+                      ),
                     ],
                   ),
                 ),

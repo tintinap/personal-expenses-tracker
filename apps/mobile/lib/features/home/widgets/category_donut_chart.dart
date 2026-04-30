@@ -6,8 +6,9 @@ import '../../shared/providers/shared_providers.dart';
 
 class CategoryDonutChart extends ConsumerStatefulWidget {
   final Set<String>? excludedCategoryIds;
+  final Set<String>? filterCurrencies;
   
-  const CategoryDonutChart({super.key, this.excludedCategoryIds});
+  const CategoryDonutChart({super.key, this.excludedCategoryIds, this.filterCurrencies});
 
   @override
   ConsumerState<CategoryDonutChart> createState() => _CategoryDonutChartState();
@@ -20,10 +21,15 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
   Widget build(BuildContext context) {
     var expenses = ref.watch(expenseListProvider);
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
+    final baseCurrency = ref.watch(baseCurrencyProvider);
     final theme = Theme.of(context);
 
     if (widget.excludedCategoryIds != null) {
       expenses = expenses.where((e) => !widget.excludedCategoryIds!.contains(e.categoryId)).toList();
+    }
+
+    if (widget.filterCurrencies != null && widget.filterCurrencies!.isNotEmpty) {
+      expenses = expenses.where((e) => widget.filterCurrencies!.contains(e.originalCurrency)).toList();
     }
 
     if (expenses.isEmpty) {

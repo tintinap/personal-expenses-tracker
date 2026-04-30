@@ -19,6 +19,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionListProvider);
+    final baseCurrency = ref.watch(baseCurrencyProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -87,9 +88,9 @@ class HomeScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           // Making it miniature
-                          const SizedBox(
+                          SizedBox(
                             height: 150,
-                            child: CategoryDonutChart(),
+                            child: CategoryDonutChart(filterCurrencies: {baseCurrency}),
                           ),
                         ],
                       ),
