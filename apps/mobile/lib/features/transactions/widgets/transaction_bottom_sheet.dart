@@ -41,7 +41,10 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
   DateTime _selectedDate = DateTime.now();
   String _fromCurrency = 'AUD';
   String _toCurrency = 'AUD';
+  /// The top-level (parent) category the user picked
   String? _selectedCategoryId;
+  /// The optional sub-category within the selected parent
+  String? _selectedSubCategoryId;
 
   // Tracks which field the user is currently editing to prevent infinite update loops
   String? _lastEditedField;
@@ -60,6 +63,8 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       _noteController.text = tx.note ?? '';
       _selectedDate = tx.transactionDate;
       _selectedCategoryId = tx.categoryId;
+      // If editing a sub-category, resolve the parent
+      // (handled in build via category list lookup)
       
       if (tx.transactionType == 'expense') {
         _selectedTab = TransactionTabType.expense;
@@ -259,6 +264,34 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
     super.dispose();
   }
 
+  /// Return only top-level (parent) categories for the first dropdown.
+  List<DropdownMenuItem<String>> _buildParentDropdownItems(List<CategoryData> allCategories) {
+    final parents = allCategories.where((c) => c.parentId == null).toList();
+    return parents.map((c) => DropdownMenuItem<String>(
+      value: c.id,
+      child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+    )).toList();
+  }
+
+  /// Return sub-category items for the selected parent.
+  List<DropdownMenuItem<String?>> _buildSubDropdownItems(
+    List<CategoryData> allCategories,
+    String parentId,
+  ) {
+    final children = allCategories.where((c) => c.parentId == parentId).toList();
+    final items = <DropdownMenuItem<String?>>[
+      const DropdownMenuItem<String?>(
+        value: null,
+        child: Text('— None —'),
+      ),
+    ];
+    items.addAll(children.map((c) => DropdownMenuItem<String?>(
+      value: c.id,
+      child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+    )));
+    return items;
+  }
+
   void _save() async {
     final amountText = _amountController.text;
     final amount = double.tryParse(amountText);
@@ -359,7 +392,7 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       originalCurrency: _fromCurrency,
       exchangeRate: 1.0,
       rateDate: _selectedDate,
-      categoryId: Value(_selectedCategoryId),
+      categoryId: Value(_selectedSubCategoryId ?? _selectedCategoryId),
       note: Value(_noteController.text),
       transactionDate: _selectedDate,
       updatedAt: Value(now),
@@ -513,14 +546,56 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
             
             if (_selectedTab == TransactionTabType.expense) ...[
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedCategoryId,
-                hint: const Text('Select Category'),
-                items: ref.watch(activeCategoryListProvider).map<DropdownMenuItem<String>>((c) {
-                  return DropdownMenuItem<String>(value: c.id, child: Text(c.name));
-                }).toList(),
-                onChanged: (id) => setState(() => _selectedCategoryId = id),
-              ),
+              Builder(builder: (context) {
+                final allCategories = ref.watch(activeCategoryListProvider);
+                final subItems = _selectedCategoryId != null
+                    ? _buildSubDropdownItems(allCategories, _selectedCategoryId!)
+                    : <DropdownMenuItem<String?>>[];
+                
+                // When editing a sub-category, resolve initial parent
+                if (_selectedCategoryId != null && _selectedSubCategoryId == null) {
+                  final cat = allCategories.where((c) => c.id == _selectedCategoryId).firstOrNull;
+                  if (cat != null && cat.parentId != null) {
+                    // This is actually a sub-category; separate parent from sub
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _selectedSubCategoryId = cat.id;
+                          _selectedCategoryId = cat.parentId;
+                        });
+                      }
+                    });
+                  }
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // First dropdown: parent category
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      value: _selectedCategoryId,
+                      hint: const Text('Select Category', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      items: _buildParentDropdownItems(allCategories),
+                      onChanged: (id) => setState(() {
+                        _selectedCategoryId = id;
+                        _selectedSubCategoryId = null; // reset sub when parent changes
+                      }),
+                    ),
+                    // Second dropdown: sub-category (only if parent has children)
+                    if (subItems.length > 1) ...[ // > 1 because "None" is always there if parent has children
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String?>(
+                        isExpanded: true,
+                        value: _selectedSubCategoryId,
+                        hint: const Text('Select Sub-category (optional)', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        items: subItems,
+                        onChanged: (id) => setState(() => _selectedSubCategoryId = id),
+                      ),
+                    ],
+                  ],
+                );
+              }),
             ],
 
             const SizedBox(height: 16),

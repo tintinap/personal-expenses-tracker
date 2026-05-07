@@ -1,95 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart' hide Column;
 
 import '../../../core/database/database.dart';
 import '../../../core/providers/database_providers.dart';
 import '../../shared/providers/shared_providers.dart';
+import '../widgets/category_bottom_sheet.dart';
 
-class CategoriesScreen extends ConsumerWidget {
+class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
+
+  @override
+  ConsumerState<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
+  // Tracks which parent IDs have their sub-categories expanded
+  final Set<String> _expandedParents = {};
 
   Color _parseHex(String hexColor) {
     hexColor = hexColor.toUpperCase().replaceAll('#', '');
-    if (hexColor.length == 6) {
-      hexColor = 'FF$hexColor';
-    }
+    if (hexColor.length == 6) hexColor = 'FF$hexColor';
     return Color(int.parse(hexColor, radix: 16));
-  }
-
-  void _showEditDialog(BuildContext context, WidgetRef ref, CategoryData category) {
-    final controller = TextEditingController(text: category.name);
-    final dao = ref.read(categoryDaoProvider);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename Category'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Category Name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty && newName != category.name) {
-                (dao.db.update(dao.db.categories)
-                      ..where((c) => c.id.equals(category.id)))
-                    .write(CategoriesCompanion(
-                  name: Value(newName),
-                  updatedAt: Value(DateTime.now()),
-                  syncStatus: const Value('pending'),
-                ));
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, CategoryData category) async {
     final dao = ref.read(categoryDaoProvider);
-    final count = await dao.countAssociatedExpenses(category.id);
-    
+    final expenseCount = await dao.countAssociatedExpenses(category.id);
+
     if (!context.mounted) return;
 
-    if (count > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cannot delete: $count transactions use this category. Reassign them first.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+    if (expenseCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Cannot delete: $expenseCount transactions use this category.'),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ));
       return;
+    }
+
+    if (category.parentId == null) {
+      final childCount = await dao.countSubCategories(category.id);
+      if (!context.mounted) return;
+      if (childCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Cannot delete: $childCount sub-categories exist. Remove them first.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ));
+        return;
+      }
     }
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Category'),
-        content: Text('Are you sure you want to delete "${category.name}"?'),
+        content: Text('Delete "${category.name}"?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
-            onPressed: () {
-              dao.deleteCategory(category.id);
-              Navigator.pop(ctx);
-            },
+            onPressed: () { dao.deleteCategory(category.id); Navigator.pop(ctx); },
             style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Delete'),
           ),
@@ -99,70 +67,204 @@ class CategoriesScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoryListProvider);
     final dao = ref.read(categoryDaoProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categories'),
-      ),
+      appBar: AppBar(title: const Text('Categories')),
       body: categoriesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        error: (err, _) => Center(child: Text('Error: $err')),
         data: (categories) {
           if (categories.isEmpty) {
             return const Center(child: Text('No categories found.'));
           }
 
-          return ListView.builder(
-            itemCount: categories.length,
-            itemBuilder: (context, index) {
-              final cat = categories[index];
-              Color catColor = Colors.grey;
-              try {
-                catColor = _parseHex(cat.colourHex);
-              } catch (_) {}
+          final parents = categories.where((c) => c.parentId == null).toList();
+          final childrenMap = <String, List<CategoryData>>{};
+          for (final cat in categories) {
+            if (cat.parentId != null) {
+              childrenMap.putIfAbsent(cat.parentId!, () => []).add(cat);
+            }
+          }
 
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: catColor,
-                  radius: 16,
-                ),
-                title: Text(
-                  cat.name,
-                  style: TextStyle(
-                    decoration: cat.isHidden ? TextDecoration.lineThrough : null,
-                    color: cat.isHidden ? Colors.grey : null,
-                  ),
-                ),
-                subtitle: cat.isHidden ? const Text('Hidden from lists') : null,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
+          return ListView.builder(
+            padding: const EdgeInsets.only(bottom: 80),
+            itemCount: parents.length,
+            itemBuilder: (context, index) {
+              final parent = parents[index];
+              final children = childrenMap[parent.id] ?? [];
+              final isExpanded = _expandedParents.contains(parent.id);
+              final parentColor = _parseHex(parent.colourHex);
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      icon: Icon(cat.isHidden ? Icons.visibility_off : Icons.visibility),
-                      tooltip: cat.isHidden ? 'Show category' : 'Hide category',
-                      onPressed: () {
-                        dao.toggleHidden(cat.id, !cat.isHidden);
-                      },
+                    // ── Parent tile ──
+                    ListTile(
+                      leading: CircleAvatar(backgroundColor: parentColor, radius: 14),
+                      title: Text(
+                        parent.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          decoration: parent.isHidden ? TextDecoration.lineThrough : null,
+                          color: parent.isHidden ? Colors.grey : null,
+                        ),
+                      ),
+                      subtitle: children.isNotEmpty
+                          ? Text(
+                              '${children.length} sub-categor${children.length == 1 ? 'y' : 'ies'}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            )
+                          : null,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Toggle expand/collapse if has children
+                          if (children.isNotEmpty)
+                            IconButton(
+                              icon: AnimatedRotation(
+                                turns: isExpanded ? 0.5 : 0,
+                                duration: const Duration(milliseconds: 200),
+                                child: const Icon(Icons.keyboard_arrow_down, size: 20),
+                              ),
+                              onPressed: () => setState(() {
+                                if (isExpanded) {
+                                  _expandedParents.remove(parent.id);
+                                } else {
+                                  _expandedParents.add(parent.id);
+                                }
+                              }),
+                            ),
+                          // If NO children yet, show "+" button next to the eye icon
+                          if (children.isEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 18),
+                              onPressed: () => CategoryBottomSheet.show(
+                                context,
+                                parentId: parent.id,
+                                parentName: parent.name,
+                                parentColor: parent.colourHex,
+                              ),
+                            ),
+                          IconButton(
+                            icon: Icon(
+                              parent.isHidden ? Icons.visibility_off : Icons.visibility,
+                              size: 18,
+                            ),
+                            onPressed: () => dao.toggleHidden(parent.id, !parent.isHidden),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            onPressed: () => _confirmDelete(context, ref, parent),
+                          ),
+                        ],
+                      ),
+                      onTap: () => CategoryBottomSheet.show(context, category: parent),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _confirmDelete(context, ref, cat),
+
+                    // ── Sub-categories (collapsed by default) ──
+                    AnimatedCrossFade(
+                      duration: const Duration(milliseconds: 200),
+                      crossFadeState: isExpanded
+                          ? CrossFadeState.showFirst
+                          : CrossFadeState.showSecond,
+                      firstChild: Column(
+                        children: [
+                          ...children.map((child) => Padding(
+                            padding: const EdgeInsets.only(left: 16),
+                            child: ListTile(
+                              dense: true,
+                              leading: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.subdirectory_arrow_right,
+                                      size: 14, color: Colors.grey[400]),
+                                  const SizedBox(width: 6),
+                                  CircleAvatar(
+                                    backgroundColor: parentColor,
+                                    radius: 8,
+                                  ),
+                                ],
+                              ),
+                              title: Text(
+                                child.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  decoration: child.isHidden ? TextDecoration.lineThrough : null,
+                                  color: child.isHidden ? Colors.grey : null,
+                                ),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      child.isHidden ? Icons.visibility_off : Icons.visibility,
+                                      size: 16,
+                                    ),
+                                    onPressed: () => dao.toggleHidden(child.id, !child.isHidden),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, size: 16),
+                                    onPressed: () => _confirmDelete(context, ref, child),
+                                  ),
+                                ],
+                              ),
+                              onTap: () => CategoryBottomSheet.show(
+                                context,
+                                category: child,
+                                parentColor: parent.colourHex,
+                                parentName: parent.name,
+                              ),
+                            ),
+                          )),
+                          // "+ Add sub-category" inline button
+                          Padding(
+                            padding: const EdgeInsets.only(left: 32, bottom: 6),
+                            child: TextButton.icon(
+                              onPressed: () => CategoryBottomSheet.show(
+                                context,
+                                parentId: parent.id,
+                                parentName: parent.name,
+                                parentColor: parent.colourHex,
+                              ),
+                              icon: Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
+                              label: Text(
+                                'Add sub-category',
+                                style: TextStyle(fontSize: 13, color: theme.colorScheme.primary),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                minimumSize: const Size(0, 32),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // When collapsed, empty box (since '+' is now in trailing actions)
+                      secondChild: const SizedBox.shrink(),
                     ),
                   ],
                 ),
-                onTap: () => _showEditDialog(context, ref, cat),
               );
             },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Open Add Category sheet
-        },
+        onPressed: () => CategoryBottomSheet.show(context),
         child: const Icon(Icons.add),
       ),
     );

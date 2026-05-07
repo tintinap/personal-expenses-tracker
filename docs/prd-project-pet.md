@@ -346,10 +346,12 @@ Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four secti
 - Each row shows: transaction type icon, amount, note, date
 
 #### Category Management (`/settings/categories`)
-- List of all categories (default + custom)
+- List of all categories (default + custom), grouped hierarchically: parent categories with their sub-categories indented below
 - Toggle visibility (hide/show)
-- Tap to rename or change colour
-- "+ Add category" at bottom (unlimited)
+- Tap to edit (rename, change colour, or assign/change parent category)
+- "+ Add category" at bottom (unlimited) — can create a top-level category or a sub-category under an existing parent
+- Sub-categories are limited to **1 level deep** — a sub-category cannot have its own children
+- Cannot delete a parent category that has sub-categories — must reassign or delete children first
 - Cannot delete a category with associated expenses — must reassign first
 - Hidden categories do not appear in the add/edit expense picker
 
@@ -572,18 +574,31 @@ No blocking gate — the export buttons are immediately below the banner.
 - Users can rename any default or custom category — renames propagate to all historical expenses
 - Users can change a category's colour at any time
 - Users can create custom categories with any name and colour — **no limit on count**
+- Users can create **sub-categories** under any top-level (parent) category — limited to **1 level deep**
+- Transactions can be assigned to either a parent category or a sub-category
+- Sub-category expenses are **aggregated under the parent** in charts and dashboard summaries
+- The transaction entry dropdown shows the hierarchy clearly (e.g. parent in bold, sub-categories indented with "— " prefix)
 - Users can hide categories (removed from pickers, still shown in reports/history)
+- A parent category **cannot be deleted** if it has active sub-categories — user must reassign or delete children first
 - Categories with associated expenses **cannot be deleted** — user must reassign expenses to another category first
+- A parent category **cannot be demoted** to a sub-category while it has children
 - Hidden categories do not appear in the add/edit expense picker
 
 ### Acceptance criteria
 
 - [ ] All 12 default categories present on first launch
 - [ ] User can create a custom category with name and colour
+- [ ] User can create a sub-category under any top-level parent category
+- [ ] Sub-category depth is enforced to 1 level (cannot nest sub-sub-categories)
+- [ ] Transaction entry dropdown shows hierarchical labels (parent bold, children indented)
+- [ ] Donut chart and dashboard summary aggregate sub-category expenses under their parent
 - [ ] Renaming a category updates all historical expenses retroactively
 - [ ] Hiding a category removes it from pickers but not from reports
 - [ ] Attempting to delete a category with expenses shows a "reassign first" dialog
-- [ ] Categories sync between mobile and web via NestJS API
+- [ ] Attempting to delete a parent with sub-categories shows a "remove children first" dialog
+- [ ] A parent category cannot be made a sub-category while it has children
+- [ ] Categories (including parentId) sync between mobile and web via NestJS API
+- [ ] Backend validates parentId references and enforces 1-level depth on sync
 
 ---
 

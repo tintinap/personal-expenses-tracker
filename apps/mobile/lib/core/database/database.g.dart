@@ -1015,6 +1015,12 @@ class $CategoriesTable extends Categories
   late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
       'sort_order', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _parentIdMeta =
+      const VerificationMeta('parentId');
+  @override
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+      'parent_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _syncStatusMeta =
       const VerificationMeta('syncStatus');
   @override
@@ -1047,6 +1053,7 @@ class $CategoriesTable extends Categories
         isDefault,
         isHidden,
         sortOrder,
+        parentId,
         syncStatus,
         createdAt,
         updatedAt
@@ -1092,6 +1099,10 @@ class $CategoriesTable extends Categories
     } else if (isInserting) {
       context.missing(_sortOrderMeta);
     }
+    if (data.containsKey('parent_id')) {
+      context.handle(_parentIdMeta,
+          parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta));
+    }
     if (data.containsKey('sync_status')) {
       context.handle(
           _syncStatusMeta,
@@ -1127,6 +1138,8 @@ class $CategoriesTable extends Categories
           .read(DriftSqlType.bool, data['${effectivePrefix}is_hidden'])!,
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      parentId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}parent_id']),
       syncStatus: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
       createdAt: attachedDatabase.typeMapping
@@ -1149,6 +1162,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
   final bool isDefault;
   final bool isHidden;
   final int sortOrder;
+  final String? parentId;
   final String syncStatus;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -1159,6 +1173,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       required this.isDefault,
       required this.isHidden,
       required this.sortOrder,
+      this.parentId,
       required this.syncStatus,
       required this.createdAt,
       required this.updatedAt});
@@ -1171,6 +1186,9 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
     map['is_default'] = Variable<bool>(isDefault);
     map['is_hidden'] = Variable<bool>(isHidden);
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
+    }
     map['sync_status'] = Variable<String>(syncStatus);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -1185,6 +1203,9 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       isDefault: Value(isDefault),
       isHidden: Value(isHidden),
       sortOrder: Value(sortOrder),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
       syncStatus: Value(syncStatus),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -1201,6 +1222,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       isDefault: serializer.fromJson<bool>(json['isDefault']),
       isHidden: serializer.fromJson<bool>(json['isHidden']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1216,6 +1238,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       'isDefault': serializer.toJson<bool>(isDefault),
       'isHidden': serializer.toJson<bool>(isHidden),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'parentId': serializer.toJson<String?>(parentId),
       'syncStatus': serializer.toJson<String>(syncStatus),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1229,6 +1252,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
           bool? isDefault,
           bool? isHidden,
           int? sortOrder,
+          Value<String?> parentId = const Value.absent(),
           String? syncStatus,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
@@ -1239,6 +1263,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
         isDefault: isDefault ?? this.isDefault,
         isHidden: isHidden ?? this.isHidden,
         sortOrder: sortOrder ?? this.sortOrder,
+        parentId: parentId.present ? parentId.value : this.parentId,
         syncStatus: syncStatus ?? this.syncStatus,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -1251,6 +1276,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
       isHidden: data.isHidden.present ? data.isHidden.value : this.isHidden,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
       syncStatus:
           data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1267,6 +1293,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
           ..write('isDefault: $isDefault, ')
           ..write('isHidden: $isHidden, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('parentId: $parentId, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1276,7 +1303,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
 
   @override
   int get hashCode => Object.hash(id, name, colourHex, isDefault, isHidden,
-      sortOrder, syncStatus, createdAt, updatedAt);
+      sortOrder, parentId, syncStatus, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1287,6 +1314,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
           other.isDefault == this.isDefault &&
           other.isHidden == this.isHidden &&
           other.sortOrder == this.sortOrder &&
+          other.parentId == this.parentId &&
           other.syncStatus == this.syncStatus &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1299,6 +1327,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
   final Value<bool> isDefault;
   final Value<bool> isHidden;
   final Value<int> sortOrder;
+  final Value<String?> parentId;
   final Value<String> syncStatus;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1310,6 +1339,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
     this.isDefault = const Value.absent(),
     this.isHidden = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1322,6 +1352,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
     this.isDefault = const Value.absent(),
     this.isHidden = const Value.absent(),
     required int sortOrder,
+    this.parentId = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1337,6 +1368,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
     Expression<bool>? isDefault,
     Expression<bool>? isHidden,
     Expression<int>? sortOrder,
+    Expression<String>? parentId,
     Expression<String>? syncStatus,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1349,6 +1381,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
       if (isDefault != null) 'is_default': isDefault,
       if (isHidden != null) 'is_hidden': isHidden,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (parentId != null) 'parent_id': parentId,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1363,6 +1396,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
       Value<bool>? isDefault,
       Value<bool>? isHidden,
       Value<int>? sortOrder,
+      Value<String?>? parentId,
       Value<String>? syncStatus,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -1374,6 +1408,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
       isDefault: isDefault ?? this.isDefault,
       isHidden: isHidden ?? this.isHidden,
       sortOrder: sortOrder ?? this.sortOrder,
+      parentId: parentId ?? this.parentId,
       syncStatus: syncStatus ?? this.syncStatus,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1402,6 +1437,9 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
+    }
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
@@ -1426,6 +1464,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
           ..write('isDefault: $isDefault, ')
           ..write('isHidden: $isHidden, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('parentId: $parentId, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -3829,6 +3868,7 @@ typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   Value<bool> isDefault,
   Value<bool> isHidden,
   required int sortOrder,
+  Value<String?> parentId,
   Value<String> syncStatus,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -3841,6 +3881,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<bool> isDefault,
   Value<bool> isHidden,
   Value<int> sortOrder,
+  Value<String?> parentId,
   Value<String> syncStatus,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -3873,6 +3914,9 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get parentId => $composableBuilder(
+      column: $table.parentId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnFilters(column));
@@ -3911,6 +3955,9 @@ class $$CategoriesTableOrderingComposer
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get parentId => $composableBuilder(
+      column: $table.parentId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
 
@@ -3947,6 +3994,9 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get parentId =>
+      $composableBuilder(column: $table.parentId, builder: (column) => column);
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => column);
@@ -3990,6 +4040,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             Value<bool> isDefault = const Value.absent(),
             Value<bool> isHidden = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String?> parentId = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -4002,6 +4053,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             isDefault: isDefault,
             isHidden: isHidden,
             sortOrder: sortOrder,
+            parentId: parentId,
             syncStatus: syncStatus,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -4014,6 +4066,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             Value<bool> isDefault = const Value.absent(),
             Value<bool> isHidden = const Value.absent(),
             required int sortOrder,
+            Value<String?> parentId = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -4026,6 +4079,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             isDefault: isDefault,
             isHidden: isHidden,
             sortOrder: sortOrder,
+            parentId: parentId,
             syncStatus: syncStatus,
             createdAt: createdAt,
             updatedAt: updatedAt,

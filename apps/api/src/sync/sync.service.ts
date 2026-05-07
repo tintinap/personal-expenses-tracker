@@ -168,6 +168,12 @@ export class SyncService {
         const existing = await this.repository.findCategoryById(recordId);
         if (existing) return;
 
+        if (payload.parentId) {
+          const parent = await this.repository.findCategoryById(payload.parentId);
+          if (!parent) throw new Error(`Invalid parentId: Parent category not found`);
+          if (parent.parentId) throw new Error(`Invalid parentId: Maximum category depth exceeded (1 level allowed).`);
+        }
+
         await this.repository.createCategory({
           id: recordId,
           userId,
@@ -176,15 +182,23 @@ export class SyncService {
           isDefault: payload.isDefault || false,
           isHidden: payload.isHidden || false,
           sortOrder: payload.sortOrder || 0,
+          parentId: payload.parentId || null,
         });
         break;
       }
 
       case 'update': {
+        if (payload.parentId) {
+          const parent = await this.repository.findCategoryById(payload.parentId);
+          if (!parent) throw new Error(`Invalid parentId: Parent category not found`);
+          if (parent.parentId) throw new Error(`Invalid parentId: Maximum category depth exceeded (1 level allowed).`);
+        }
+
         await this.repository.updateCategory(recordId, {
           name: payload.name,
           colourHex: payload.colourHex,
           isHidden: payload.isHidden,
+          parentId: payload.parentId,
         });
         break;
       }

@@ -207,7 +207,10 @@ final dashboardSummaryProvider = Provider<DashboardSummary>((ref) {
   final categoryTotals = <String, double>{};
   for (final expense in expenses) {
     if (expense.categoryId != null) {
-      categoryTotals[expense.categoryId!] = (categoryTotals[expense.categoryId!] ?? 0) + expense.originalAmount.abs();
+      // Resolve sub-category to parent for display grouping
+      final cat = categories.where((c) => c.id == expense.categoryId).firstOrNull;
+      final displayId = (cat != null && cat.parentId != null) ? cat.parentId! : expense.categoryId!;
+      categoryTotals[displayId] = (categoryTotals[displayId] ?? 0) + expense.originalAmount.abs();
     }
   }
 

@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration {
@@ -52,6 +52,12 @@ class AppDatabase extends _$AppDatabase {
         await _seedDefaultCategories();
         // Seed default settings
         await _seedDefaultSettings();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          // Add parent_id column to categories table
+          await m.addColumn(categories, categories.parentId);
+        }
       },
     );
   }

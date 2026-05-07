@@ -57,6 +57,30 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
     return result.length;
   }
 
+  /// Count sub-categories of a parent category (for delete guard)
+  Future<int> countSubCategories(String parentId) async {
+    final result = await (select(categories)
+          ..where((c) => c.parentId.equals(parentId)))
+        .get();
+    return result.length;
+  }
+
+  /// Get only top-level (parent) categories — those with no parentId
+  Future<List<CategoryData>> getParentCategories() {
+    return (select(categories)
+          ..where((c) => c.parentId.isNull())
+          ..orderBy([(c) => OrderingTerm.asc(c.sortOrder)]))
+        .get();
+  }
+
+  /// Get sub-categories for a given parent
+  Future<List<CategoryData>> getSubCategories(String parentId) {
+    return (select(categories)
+          ..where((c) => c.parentId.equals(parentId))
+          ..orderBy([(c) => OrderingTerm.asc(c.sortOrder)]))
+        .get();
+  }
+
   /// Delete a category (only if no associated expenses)
   Future<void> deleteCategory(String id) {
     return (delete(categories)..where((c) => c.id.equals(id))).go();

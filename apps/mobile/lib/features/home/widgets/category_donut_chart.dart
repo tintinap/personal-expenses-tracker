@@ -21,7 +21,6 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
   Widget build(BuildContext context) {
     var expenses = ref.watch(expenseListProvider);
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
-    final baseCurrency = ref.watch(baseCurrencyProvider);
     final theme = Theme.of(context);
 
     if (widget.excludedCategoryIds != null) {
@@ -41,14 +40,17 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
       );
     }
 
-    // Group expenses by category
+    // Group expenses by category — resolve sub-categories to their parent
     final categoryTotals = <String, double>{};
     double totalSpent = 0;
     
     for (final exp in expenses) {
       if (exp.categoryId != null) {
+        // Find the category and resolve to parent if it's a sub-category
+        final cat = categories.where((c) => c.id == exp.categoryId).firstOrNull;
+        final displayId = (cat != null && cat.parentId != null) ? cat.parentId! : exp.categoryId!;
         final amt = exp.amountBase.abs(); // Ensure positive for chart rendering
-        categoryTotals[exp.categoryId!] = (categoryTotals[exp.categoryId!] ?? 0) + amt;
+        categoryTotals[displayId] = (categoryTotals[displayId] ?? 0) + amt;
         totalSpent += amt;
       }
     }

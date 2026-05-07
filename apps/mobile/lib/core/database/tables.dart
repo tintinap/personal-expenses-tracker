@@ -37,6 +37,7 @@ class Categories extends Table {
   BoolColumn get isDefault => boolean().named('is_default').withDefault(const Constant(false))();
   BoolColumn get isHidden => boolean().named('is_hidden').withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().named('sort_order')();
+  TextColumn get parentId => text().named('parent_id').nullable()();
   TextColumn get syncStatus => text().named('sync_status').withDefault(const Constant('pending'))();
   DateTimeColumn get createdAt => dateTime().named('created_at').withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().named('updated_at').withDefault(currentDateAndTime)();
