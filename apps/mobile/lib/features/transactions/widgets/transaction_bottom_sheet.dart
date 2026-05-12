@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/database.dart';
 import '../../../core/providers/database_providers.dart';
+import '../../categories/widgets/category_bottom_sheet.dart';
 import '../../shared/providers/shared_providers.dart';
 import '../providers/exchange_rate_providers.dart';
 import 'package:drift/drift.dart' hide Column;
@@ -292,6 +293,34 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
     return items;
   }
 
+  /// Opens [CategoryBottomSheet] in sub-category mode, then auto-selects the
+  /// newly created sub-category once it appears in the category list.
+  Future<void> _addSubCategory(CategoryData parent) async {
+    // Need the full list (incl. hidden) so the diff isn't skewed by hidden ones.
+    final beforeIds = (ref.read(categoryListProvider).valueOrNull ?? const [])
+        .map((c) => c.id)
+        .toSet();
+
+    await CategoryBottomSheet.show(
+      context,
+      parentId: parent.id,
+      parentName: parent.name,
+      parentColor: parent.colourHex,
+      parentIconCodePoint: parent.iconCodePoint,
+    );
+
+    if (!mounted) return;
+
+    // Find the newly created sub-category for this parent.
+    final after = ref.read(categoryListProvider).valueOrNull ?? const [];
+    final newSubs = after
+        .where((c) => c.parentId == parent.id && !beforeIds.contains(c.id))
+        .toList();
+    if (newSubs.isNotEmpty) {
+      setState(() => _selectedSubCategoryId = newSubs.first.id);
+    }
+  }
+
   void _save() async {
     final amountText = _amountController.text;
     final amount = double.tryParse(amountText);
@@ -568,6 +597,13 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
                   }
                 }
 
+                final selectedParent = _selectedCategoryId == null
+                    ? null
+                    : allCategories
+                        .where((c) => c.id == _selectedCategoryId)
+                        .firstOrNull;
+                final hasSubCategories = subItems.length > 1;
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -579,19 +615,46 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
                       items: _buildParentDropdownItems(allCategories),
                       onChanged: (id) => setState(() {
                         _selectedCategoryId = id;
-                        _selectedSubCategoryId = null; // reset sub when parent changes
+                        _selectedSubCategoryId = null;
                       }),
                     ),
-                    // Second dropdown: sub-category (only if parent has children)
-                    if (subItems.length > 1) ...[ // > 1 because "None" is always there if parent has children
+                    // Sub-category row: dropdown + "add sub" button.
+                    if (selectedParent != null) ...[
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String?>(
-                        isExpanded: true,
-                        value: _selectedSubCategoryId,
-                        hint: const Text('Select Sub-category (optional)', maxLines: 1, overflow: TextOverflow.ellipsis),
-                        items: subItems,
-                        onChanged: (id) => setState(() => _selectedSubCategoryId = id),
-                      ),
+                      if (hasSubCategories)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String?>(
+                                isExpanded: true,
+                                value: _selectedSubCategoryId,
+                                hint: const Text(
+                                  'Select Sub-category (optional)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                items: subItems,
+                                onChanged: (id) =>
+                                    setState(() => _selectedSubCategoryId = id),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton.outlined(
+                              tooltip: 'Add sub-category',
+                              icon: const Icon(Icons.add),
+                              onPressed: () => _addSubCategory(selectedParent),
+                            ),
+                          ],
+                        )
+                      else
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () => _addSubCategory(selectedParent),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Add sub-category'),
+                          ),
+                        ),
                     ],
                   ],
                 );
