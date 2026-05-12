@@ -4,6 +4,25 @@ import '../tables.dart';
 
 part 'transaction_dao.g.dart';
 
+/// PRD §11c — per-currency activity totals shown on each Currency Card.
+///
+/// - [totalIn]: sum of `currency_income` original amounts (all-time).
+/// - [totalSpent]: sum of `expense` original amounts (all-time, positive).
+/// - [netExchanged]: net of (`currency_exchange_in` − `currency_exchange_out`)
+///   for this currency. Positive ⇒ net inflow via exchanges; negative ⇒
+///   net outflow.
+class CurrencyBreakdown {
+  final double totalIn;
+  final double totalSpent;
+  final double netExchanged;
+
+  const CurrencyBreakdown({
+    this.totalIn = 0,
+    this.totalSpent = 0,
+    this.netExchanged = 0,
+  });
+}
+
 /// PRD §8, §11 — DAO for all transaction types (expense, income, exchange)
 @DriftAccessor(tables: [Transactions, Categories])
 class TransactionDao extends DatabaseAccessor<AppDatabase>
@@ -127,4 +146,104 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
     final result = await getExpensesByDateRange(from, to);
     return result.fold<double>(0.0, (double sum, tx) => sum + tx.amountBase);
   }
+
+  /// One-shot variant of [watchCountByCurrency].
+  Future<Map<String, int>> countByCurrency() async {
+    final countExpr = transactions.id.count();
+    final query = selectOnly(transactions)
+      ..addColumns([transactions.originalCurrency, countExpr])
+      ..where(transactions.deletedAt.isNull())
+      ..groupBy([transactions.originalCurrency]);
+    final rows = await query.get();
+    return _rowsToCountMap(rows, countExpr);
+  }
+
+  /// Streaming variant — Drift re-executes the underlying query only when the
+  /// `transactions` table changes, so the result is naturally cached between
+  /// emissions. Combine with a Riverpod `StreamProvider` to share a single
+  /// cached value across the whole app.
+  Stream<Map<String, int>> watchCountByCurrency() {
+    final countExpr = transactions.id.count();
+    final query = selectOnly(transactions)
+      ..addColumns([transactions.originalCurrency, countExpr])
+      ..where(transactions.deletedAt.isNull())
+      ..groupBy([transactions.originalCurrency]);
+    return query.watch().map((rows) => _rowsToCountMap(rows, countExpr));
+  }
+
+  Map<String, int> _rowsToCountMap(
+    List<TypedResult> rows,
+    Expression<int> countExpr,
+  ) {
+    final result = <String, int>{};
+    for (final row in rows) {
+      final currency = row.read(transactions.originalCurrency);
+      final count = row.read(countExpr) ?? 0;
+      if (currency != null) result[currency] = count;
+    }
+    return result;
+  }
+
+  /// Reactive per-currency breakdown (income / spent / net exchanged).
+  ///
+  /// PRD §11c — used by the Currency Wallets cards. Grouped at the database
+  /// level (one query per emission) and re-executed by Drift only when
+  /// `transactions` rows change, so consumers can safely share the stream
+  /// via a Riverpod `StreamProvider` without re-querying per card.
+  Stream<Map<String, CurrencyBreakdown>> watchBreakdownByCurrency() {
+    final amountSum = transactions.originalAmount.sum();
+    final query = selectOnly(transactions)
+      ..addColumns([
+        transactions.originalCurrency,
+        transactions.transactionType,
+        amountSum,
+      ])
+      ..where(transactions.deletedAt.isNull())
+      ..groupBy([transactions.originalCurrency, transactions.transactionType]);
+    return query
+        .watch()
+        .map((rows) => _rowsToBreakdownMap(rows, amountSum));
+  }
+
+  Map<String, CurrencyBreakdown> _rowsToBreakdownMap(
+    List<TypedResult> rows,
+    Expression<double> amountSum,
+  ) {
+    final totals = <String, _MutableBreakdown>{};
+    for (final row in rows) {
+      final currency = row.read(transactions.originalCurrency);
+      final type = row.read(transactions.transactionType);
+      final sum = row.read(amountSum) ?? 0.0;
+      if (currency == null || type == null) continue;
+
+      final entry = totals.putIfAbsent(currency, _MutableBreakdown.new);
+      switch (type) {
+        case 'currency_income':
+          entry.totalIn += sum;
+          break;
+        case 'expense':
+          entry.totalSpent += sum;
+          break;
+        case 'currency_exchange_in':
+          entry.netExchanged += sum;
+          break;
+        case 'currency_exchange_out':
+          entry.netExchanged -= sum;
+          break;
+      }
+    }
+    return totals.map((k, v) => MapEntry(k, v.toImmutable()));
+  }
+}
+
+class _MutableBreakdown {
+  double totalIn = 0;
+  double totalSpent = 0;
+  double netExchanged = 0;
+
+  CurrencyBreakdown toImmutable() => CurrencyBreakdown(
+        totalIn: totalIn,
+        totalSpent: totalSpent,
+        netExchanged: netExchanged,
+      );
 }

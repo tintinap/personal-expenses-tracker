@@ -989,6 +989,14 @@ class $CategoriesTable extends Categories
       additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 7),
       type: DriftSqlType.string,
       requiredDuringInsert: true);
+  static const VerificationMeta _iconCodePointMeta =
+      const VerificationMeta('iconCodePoint');
+  @override
+  late final GeneratedColumn<int> iconCodePoint = GeneratedColumn<int>(
+      'icon_code_point', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0xe148));
   static const VerificationMeta _isDefaultMeta =
       const VerificationMeta('isDefault');
   @override
@@ -1050,6 +1058,7 @@ class $CategoriesTable extends Categories
         id,
         name,
         colourHex,
+        iconCodePoint,
         isDefault,
         isHidden,
         sortOrder,
@@ -1084,6 +1093,12 @@ class $CategoriesTable extends Categories
           colourHex.isAcceptableOrUnknown(data['colour_hex']!, _colourHexMeta));
     } else if (isInserting) {
       context.missing(_colourHexMeta);
+    }
+    if (data.containsKey('icon_code_point')) {
+      context.handle(
+          _iconCodePointMeta,
+          iconCodePoint.isAcceptableOrUnknown(
+              data['icon_code_point']!, _iconCodePointMeta));
     }
     if (data.containsKey('is_default')) {
       context.handle(_isDefaultMeta,
@@ -1132,6 +1147,8 @@ class $CategoriesTable extends Categories
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       colourHex: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}colour_hex'])!,
+      iconCodePoint: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}icon_code_point'])!,
       isDefault: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_default'])!,
       isHidden: attachedDatabase.typeMapping
@@ -1159,6 +1176,9 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
   final String id;
   final String name;
   final String colourHex;
+
+  /// [IconData.codePoint] for `fontFamily: MaterialIcons` (user-selectable in category editor).
+  final int iconCodePoint;
   final bool isDefault;
   final bool isHidden;
   final int sortOrder;
@@ -1170,6 +1190,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       {required this.id,
       required this.name,
       required this.colourHex,
+      required this.iconCodePoint,
       required this.isDefault,
       required this.isHidden,
       required this.sortOrder,
@@ -1183,6 +1204,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['colour_hex'] = Variable<String>(colourHex);
+    map['icon_code_point'] = Variable<int>(iconCodePoint);
     map['is_default'] = Variable<bool>(isDefault);
     map['is_hidden'] = Variable<bool>(isHidden);
     map['sort_order'] = Variable<int>(sortOrder);
@@ -1200,6 +1222,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       id: Value(id),
       name: Value(name),
       colourHex: Value(colourHex),
+      iconCodePoint: Value(iconCodePoint),
       isDefault: Value(isDefault),
       isHidden: Value(isHidden),
       sortOrder: Value(sortOrder),
@@ -1219,6 +1242,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       colourHex: serializer.fromJson<String>(json['colourHex']),
+      iconCodePoint: serializer.fromJson<int>(json['iconCodePoint']),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
       isHidden: serializer.fromJson<bool>(json['isHidden']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
@@ -1235,6 +1259,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'colourHex': serializer.toJson<String>(colourHex),
+      'iconCodePoint': serializer.toJson<int>(iconCodePoint),
       'isDefault': serializer.toJson<bool>(isDefault),
       'isHidden': serializer.toJson<bool>(isHidden),
       'sortOrder': serializer.toJson<int>(sortOrder),
@@ -1249,6 +1274,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
           {String? id,
           String? name,
           String? colourHex,
+          int? iconCodePoint,
           bool? isDefault,
           bool? isHidden,
           int? sortOrder,
@@ -1260,6 +1286,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
         id: id ?? this.id,
         name: name ?? this.name,
         colourHex: colourHex ?? this.colourHex,
+        iconCodePoint: iconCodePoint ?? this.iconCodePoint,
         isDefault: isDefault ?? this.isDefault,
         isHidden: isHidden ?? this.isHidden,
         sortOrder: sortOrder ?? this.sortOrder,
@@ -1273,6 +1300,9 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       colourHex: data.colourHex.present ? data.colourHex.value : this.colourHex,
+      iconCodePoint: data.iconCodePoint.present
+          ? data.iconCodePoint.value
+          : this.iconCodePoint,
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
       isHidden: data.isHidden.present ? data.isHidden.value : this.isHidden,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
@@ -1290,6 +1320,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('colourHex: $colourHex, ')
+          ..write('iconCodePoint: $iconCodePoint, ')
           ..write('isDefault: $isDefault, ')
           ..write('isHidden: $isHidden, ')
           ..write('sortOrder: $sortOrder, ')
@@ -1302,8 +1333,8 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, colourHex, isDefault, isHidden,
-      sortOrder, parentId, syncStatus, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, name, colourHex, iconCodePoint, isDefault,
+      isHidden, sortOrder, parentId, syncStatus, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1311,6 +1342,7 @@ class CategoryData extends DataClass implements Insertable<CategoryData> {
           other.id == this.id &&
           other.name == this.name &&
           other.colourHex == this.colourHex &&
+          other.iconCodePoint == this.iconCodePoint &&
           other.isDefault == this.isDefault &&
           other.isHidden == this.isHidden &&
           other.sortOrder == this.sortOrder &&
@@ -1324,6 +1356,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> colourHex;
+  final Value<int> iconCodePoint;
   final Value<bool> isDefault;
   final Value<bool> isHidden;
   final Value<int> sortOrder;
@@ -1336,6 +1369,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.colourHex = const Value.absent(),
+    this.iconCodePoint = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.isHidden = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -1349,6 +1383,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
     required String id,
     required String name,
     required String colourHex,
+    this.iconCodePoint = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.isHidden = const Value.absent(),
     required int sortOrder,
@@ -1365,6 +1400,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? colourHex,
+    Expression<int>? iconCodePoint,
     Expression<bool>? isDefault,
     Expression<bool>? isHidden,
     Expression<int>? sortOrder,
@@ -1378,6 +1414,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (colourHex != null) 'colour_hex': colourHex,
+      if (iconCodePoint != null) 'icon_code_point': iconCodePoint,
       if (isDefault != null) 'is_default': isDefault,
       if (isHidden != null) 'is_hidden': isHidden,
       if (sortOrder != null) 'sort_order': sortOrder,
@@ -1393,6 +1430,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
       {Value<String>? id,
       Value<String>? name,
       Value<String>? colourHex,
+      Value<int>? iconCodePoint,
       Value<bool>? isDefault,
       Value<bool>? isHidden,
       Value<int>? sortOrder,
@@ -1405,6 +1443,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
       id: id ?? this.id,
       name: name ?? this.name,
       colourHex: colourHex ?? this.colourHex,
+      iconCodePoint: iconCodePoint ?? this.iconCodePoint,
       isDefault: isDefault ?? this.isDefault,
       isHidden: isHidden ?? this.isHidden,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -1427,6 +1466,9 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
     }
     if (colourHex.present) {
       map['colour_hex'] = Variable<String>(colourHex.value);
+    }
+    if (iconCodePoint.present) {
+      map['icon_code_point'] = Variable<int>(iconCodePoint.value);
     }
     if (isDefault.present) {
       map['is_default'] = Variable<bool>(isDefault.value);
@@ -1461,6 +1503,7 @@ class CategoriesCompanion extends UpdateCompanion<CategoryData> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('colourHex: $colourHex, ')
+          ..write('iconCodePoint: $iconCodePoint, ')
           ..write('isDefault: $isDefault, ')
           ..write('isHidden: $isHidden, ')
           ..write('sortOrder: $sortOrder, ')
@@ -3865,6 +3908,7 @@ typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   required String id,
   required String name,
   required String colourHex,
+  Value<int> iconCodePoint,
   Value<bool> isDefault,
   Value<bool> isHidden,
   required int sortOrder,
@@ -3878,6 +3922,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<String> id,
   Value<String> name,
   Value<String> colourHex,
+  Value<int> iconCodePoint,
   Value<bool> isDefault,
   Value<bool> isHidden,
   Value<int> sortOrder,
@@ -3905,6 +3950,9 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<String> get colourHex => $composableBuilder(
       column: $table.colourHex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get iconCodePoint => $composableBuilder(
+      column: $table.iconCodePoint, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isDefault => $composableBuilder(
       column: $table.isDefault, builder: (column) => ColumnFilters(column));
@@ -3946,6 +3994,10 @@ class $$CategoriesTableOrderingComposer
   ColumnOrderings<String> get colourHex => $composableBuilder(
       column: $table.colourHex, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get iconCodePoint => $composableBuilder(
+      column: $table.iconCodePoint,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isDefault => $composableBuilder(
       column: $table.isDefault, builder: (column) => ColumnOrderings(column));
 
@@ -3985,6 +4037,9 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<String> get colourHex =>
       $composableBuilder(column: $table.colourHex, builder: (column) => column);
+
+  GeneratedColumn<int> get iconCodePoint => $composableBuilder(
+      column: $table.iconCodePoint, builder: (column) => column);
 
   GeneratedColumn<bool> get isDefault =>
       $composableBuilder(column: $table.isDefault, builder: (column) => column);
@@ -4037,6 +4092,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String> colourHex = const Value.absent(),
+            Value<int> iconCodePoint = const Value.absent(),
             Value<bool> isDefault = const Value.absent(),
             Value<bool> isHidden = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
@@ -4050,6 +4106,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             id: id,
             name: name,
             colourHex: colourHex,
+            iconCodePoint: iconCodePoint,
             isDefault: isDefault,
             isHidden: isHidden,
             sortOrder: sortOrder,
@@ -4063,6 +4120,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             required String id,
             required String name,
             required String colourHex,
+            Value<int> iconCodePoint = const Value.absent(),
             Value<bool> isDefault = const Value.absent(),
             Value<bool> isHidden = const Value.absent(),
             required int sortOrder,
@@ -4076,6 +4134,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             id: id,
             name: name,
             colourHex: colourHex,
+            iconCodePoint: iconCodePoint,
             isDefault: isDefault,
             isHidden: isHidden,
             sortOrder: sortOrder,
