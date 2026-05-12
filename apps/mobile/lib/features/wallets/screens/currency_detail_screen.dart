@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/database/database.dart';
@@ -26,7 +27,8 @@ class CurrencyDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('$currency Wallet'),
       ),
-      body: CustomScrollView(
+      body: SlidableAutoCloseBehavior(
+        child: CustomScrollView(
         slivers: [
           // Balance Header
           SliverToBoxAdapter(
@@ -140,6 +142,7 @@ class CurrencyDetailScreen extends ConsumerWidget {
             },
           ),
         ],
+      ),
       ),
     );
   }
