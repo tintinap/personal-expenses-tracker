@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/database.dart';
+import '../../../core/presentation/category_visuals.dart';
 import '../../../core/providers/database_providers.dart';
 import '../../shared/providers/shared_providers.dart';
 import '../widgets/category_bottom_sheet.dart';
@@ -18,9 +19,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   final Set<String> _expandedParents = {};
 
   Color _parseHex(String hexColor) {
-    hexColor = hexColor.toUpperCase().replaceAll('#', '');
-    if (hexColor.length == 6) hexColor = 'FF$hexColor';
-    return Color(int.parse(hexColor, radix: 16));
+    return parseHexColour(hexColor);
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, CategoryData category) async {
@@ -106,7 +105,11 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                   children: [
                     // ── Parent tile ──
                     ListTile(
-                      leading: CircleAvatar(backgroundColor: parentColor, radius: 14),
+                      leading: categoryGlyphAvatar(
+                        colour: parentColor,
+                        iconCodePoint: parent.iconCodePoint,
+                        radius: 18,
+                      ),
                       title: Text(
                         parent.name,
                         maxLines: 1,
@@ -154,6 +157,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                                 parentId: parent.id,
                                 parentName: parent.name,
                                 parentColor: parent.colourHex,
+                                parentIconCodePoint: parent.iconCodePoint,
                               ),
                             ),
                           IconButton(
@@ -190,9 +194,10 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                                   Icon(Icons.subdirectory_arrow_right,
                                       size: 14, color: Colors.grey[400]),
                                   const SizedBox(width: 6),
-                                  CircleAvatar(
-                                    backgroundColor: parentColor,
-                                    radius: 8,
+                                  categoryGlyphAvatar(
+                                    colour: _parseHex(child.colourHex),
+                                    iconCodePoint: child.iconCodePoint,
+                                    radius: 10,
                                   ),
                                 ],
                               ),
@@ -227,6 +232,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                                 category: child,
                                 parentColor: parent.colourHex,
                                 parentName: parent.name,
+                                parentIconCodePoint: parent.iconCodePoint,
                               ),
                             ),
                           )),
@@ -239,6 +245,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                                 parentId: parent.id,
                                 parentName: parent.name,
                                 parentColor: parent.colourHex,
+                                parentIconCodePoint: parent.iconCodePoint,
                               ),
                               icon: Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
                               label: Text(

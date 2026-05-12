@@ -1,0 +1,30 @@
+import 'package:flutter/material.dart';
+
+/// Material icons available when choosing a category glyph.
+final List<IconData> kCategoryIconChoices = [
+  Icons.restaurant,
+  Icons.local_grocery_store,
+  Icons.directions_car,
+  Icons.local_hospital,
+  Icons.shopping_bag,
+  Icons.receipt_long,
+  Icons.movie,
+  Icons.flight,
+  Icons.subscriptions,
+  Icons.school,
+  Icons.spa,
+  Icons.category,
+  Icons.home,
+  Icons.pets,
+  Icons.fitness_center,
+  Icons.phone_android,
+  Icons.card_giftcard,
+  Icons.work,
+  Icons.coffee,
+  Icons.local_cafe,
+  Icons.fastfood,
+  Icons.train,
+  Icons.local_gas_station,
+  Icons.bolt,
+  Icons.attach_money,
+];

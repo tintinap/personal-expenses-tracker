@@ -4,7 +4,9 @@ import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' hide Column;
 
 import '../../../core/database/database.dart';
+import '../../../core/presentation/category_visuals.dart';
 import '../../../core/providers/database_providers.dart';
+import '../category_icon_picker_data.dart';
 import '../../shared/providers/shared_providers.dart';
 
 /// Bottom sheet for creating or editing a category / sub-category.
@@ -19,6 +21,9 @@ class CategoryBottomSheet extends ConsumerStatefulWidget {
   final String? parentName;
   /// Parent's colourHex — inherited by sub-categories
   final String? parentColor;
+  /// Parent's iconCodePoint — used as the default icon for new sub-categories
+  /// (and as a fallback when editing a sub-category whose icon is unset).
+  final int? parentIconCodePoint;
 
   const CategoryBottomSheet({
     super.key,
@@ -26,6 +31,7 @@ class CategoryBottomSheet extends ConsumerStatefulWidget {
     this.parentId,
     this.parentName,
     this.parentColor,
+    this.parentIconCodePoint,
   });
 
   static Future<void> show(BuildContext context, {
@@ -33,6 +39,7 @@ class CategoryBottomSheet extends ConsumerStatefulWidget {
     String? parentId,
     String? parentName,
     String? parentColor,
+    int? parentIconCodePoint,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -43,6 +50,7 @@ class CategoryBottomSheet extends ConsumerStatefulWidget {
         parentId: parentId,
         parentName: parentName,
         parentColor: parentColor,
+        parentIconCodePoint: parentIconCodePoint,
       ),
     );
   }
@@ -54,6 +62,7 @@ class CategoryBottomSheet extends ConsumerStatefulWidget {
 class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
   final _nameController = TextEditingController();
   String _selectedColor = '#378ADD';
+  late int _selectedIconCode;
 
   static const _colorOptions = [
     '#378ADD', '#4CAF50', '#FF7043', '#E91E8C',
@@ -72,10 +81,21 @@ class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
     if (widget.initialCategory != null) {
       _nameController.text = widget.initialCategory!.name;
       _selectedColor = widget.initialCategory!.colourHex;
-    } else if (widget.parentColor != null) {
-      // Sub-category inherits parent color
+      _selectedIconCode = widget.initialCategory!.iconCodePoint;
+    } else {
+      _selectedIconCode = widget.parentIconCodePoint ?? _resolveParentIconCode() ?? Icons.category.codePoint;
+    }
+    if (widget.initialCategory == null && widget.parentColor != null) {
+      // Sub-category inherits parent color by default
       _selectedColor = widget.parentColor!;
     }
+  }
+
+  int? _resolveParentIconCode() {
+    final parentId = widget.parentId ?? widget.initialCategory?.parentId;
+    if (parentId == null) return null;
+    final all = ref.read(categoryListProvider).valueOrNull ?? [];
+    return all.where((c) => c.id == parentId).firstOrNull?.iconCodePoint;
   }
 
   @override
@@ -84,10 +104,44 @@ class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
     super.dispose();
   }
 
+  Widget _buildIconPicker(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Icon', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: kCategoryIconChoices.map((icon) {
+            final code = icon.codePoint;
+            final selected = code == _selectedIconCode;
+            final previewColour = _parseHex(_selectedColor);
+            return InkWell(
+              onTap: () => setState(() => _selectedIconCode = code),
+              borderRadius: BorderRadius.circular(24),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected ? theme.colorScheme.primary : Colors.transparent,
+                    width: selected ? 2.5 : 1,
+                  ),
+                  color: previewColour.withValues(alpha: selected ? 0.28 : 0.12),
+                ),
+                child: Icon(icon, color: previewColour, size: 22),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Color _parseHex(String hexColor) {
-    hexColor = hexColor.toUpperCase().replaceAll('#', '');
-    if (hexColor.length == 6) hexColor = 'FF$hexColor';
-    return Color(int.parse(hexColor, radix: 16));
+    return parseHexColour(hexColor);
   }
 
   void _save() async {
@@ -109,6 +163,7 @@ class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
         CategoriesCompanion(
           name: Value(name),
           colourHex: Value(_selectedColor),
+          iconCodePoint: Value(_selectedIconCode),
           updatedAt: Value(now),
           syncStatus: const Value('pending'),
         ),
@@ -131,6 +186,7 @@ class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
         id: newId,
         name: name,
         colourHex: _selectedColor,
+        iconCodePoint: Value(_selectedIconCode),
         sortOrder: maxSort + 1,
         parentId: Value(widget.parentId),
         syncStatus: const Value('pending'),
@@ -162,9 +218,10 @@ class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: _parseHex(_selectedColor),
-                  radius: 10,
+                categoryGlyphAvatar(
+                  colour: _parseHex(_selectedColor),
+                  iconCodePoint: _selectedIconCode,
+                  radius: 16,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -186,6 +243,8 @@ class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
                   ),
               ],
             ),
+            const SizedBox(height: 12),
+            _buildIconPicker(theme),
             const SizedBox(height: 12),
             TextField(
               controller: _nameController,
@@ -228,6 +287,8 @@ class _CategoryBottomSheetState extends ConsumerState<CategoryBottomSheet> {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 16),
+            _buildIconPicker(theme),
             const SizedBox(height: 16),
             Text('Color', style: theme.textTheme.labelLarge),
             const SizedBox(height: 8),
