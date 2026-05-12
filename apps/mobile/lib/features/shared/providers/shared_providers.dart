@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/database/daos/transaction_dao.dart' show CurrencyBreakdown;
 import '../../../core/database/database.dart';
 import '../../../core/providers/database_providers.dart';
 
@@ -131,6 +133,28 @@ final transactionListProvider = StreamProvider<List<TransactionData>>((ref) {
   return dao.watchByDateRange(period.from, period.to);
 });
 
+/// Cached `currency → number of non-deleted transactions` (all-time).
+///
+/// Backed by a Drift watched aggregate query, so it only re-runs when the
+/// `transactions` table actually changes. Riverpod then caches the latest
+/// emission and shares it across every consumer (single read per change).
+final transactionCountByCurrencyProvider =
+    StreamProvider<Map<String, int>>((ref) {
+  final dao = ref.watch(transactionDaoProvider);
+  return dao.watchCountByCurrency();
+});
+
+/// Cached `currency → CurrencyBreakdown` (income / spent / net exchanged).
+///
+/// PRD §11c — drives the per-currency breakdown row on each Currency Card.
+/// Same caching rationale as [transactionCountByCurrencyProvider]: a single
+/// watched aggregate query, shared across every card.
+final currencyBreakdownProvider =
+    StreamProvider<Map<String, CurrencyBreakdown>>((ref) {
+  final dao = ref.watch(transactionDaoProvider);
+  return dao.watchBreakdownByCurrency();
+});
+
 /// PRD §21 — Expense List Provider (Derived from transactionListProvider)
 final expenseListProvider = Provider<List<TransactionData>>((ref) {
   final transactions = ref.watch(transactionListProvider).valueOrNull ?? [];
@@ -161,8 +185,77 @@ final currencyBalancesProvider = StreamProvider<List<CurrencyBalanceData>>((ref)
   return dao.watchBalances();
 });
 
-/// PRD §21 — Base Currency Provider (Default)
-final baseCurrencyProvider = Provider<String>((ref) => 'AUD');
+/// PRD §21 — Base Currency Provider (persisted in `settings` table).
+class BaseCurrencyNotifier extends Notifier<String> {
+  @override
+  String build() {
+    _load();
+    return 'AUD';
+  }
+
+  Future<void> _load() async {
+    final db = ref.read(databaseProvider);
+    final value = await db.getSetting('base_currency');
+    if (value != null && value.isNotEmpty) state = value;
+  }
+
+  Future<void> set(String code) async {
+    final upper = code.toUpperCase();
+    final db = ref.read(databaseProvider);
+    await db.setSetting('base_currency', upper);
+    state = upper;
+  }
+}
+
+final baseCurrencyProvider =
+    NotifierProvider<BaseCurrencyNotifier, String>(BaseCurrencyNotifier.new);
+
+/// Persisted theme-mode preference (system / light / dark).
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() {
+    _load();
+    return ThemeMode.system;
+  }
+
+  Future<void> _load() async {
+    final db = ref.read(databaseProvider);
+    final value = await db.getSetting('theme_mode');
+    state = _decode(value);
+  }
+
+  Future<void> set(ThemeMode mode) async {
+    final db = ref.read(databaseProvider);
+    await db.setSetting('theme_mode', _encode(mode));
+    state = mode;
+  }
+
+  static ThemeMode _decode(String? raw) {
+    switch (raw) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      case 'system':
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  static String _encode(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'light';
+      case ThemeMode.dark:
+        return 'dark';
+      case ThemeMode.system:
+        return 'system';
+    }
+  }
+}
+
+final themeModeProvider =
+    NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
 
 /// PRD §21 — Dashboard Summary Provider
 class DashboardSummary {
