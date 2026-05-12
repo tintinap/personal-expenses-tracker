@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -9,6 +10,7 @@ import '../../shared/widgets/transaction_list_tile.dart';
 import '../widgets/dashboard_summary_cards.dart';
 import '../widgets/running_balance_chips.dart';
 import '../widgets/category_donut_chart.dart';
+import '../widgets/category_transactions_sheet.dart';
 import '../../auth/widgets/sign_in_banner.dart';
 
 
@@ -34,7 +36,8 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: SlidableAutoCloseBehavior(
+        child: RefreshIndicator(
         onRefresh: () async {
           // In a real app we might trigger a background sync here
           ref.invalidate(transactionListProvider);
@@ -58,23 +61,26 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
-            // Mini Dashboard Chart (Tappable)
+            // Mini Dashboard Chart — slice taps drill into transactions,
+            // tapping the title row navigates to the full dashboard.
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: InkWell(
-                  onTap: () => context.go('/dashboard-detail'),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Card(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    elevation: 0,
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
+                child: Card(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  elevation: 0,
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      InkWell(
+                        onTap: () => context.go('/dashboard-detail'),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
@@ -83,18 +89,30 @@ class HomeScreen extends ConsumerWidget {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                              Icon(
+                                Icons.chevron_right,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          // Making it miniature
-                          SizedBox(
-                            height: 150,
-                            child: CategoryDonutChart(filterCurrencies: {baseCurrency}),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: SizedBox(
+                          height: 150,
+                          child: CategoryDonutChart(
+                            filterCurrencies: {baseCurrency},
+                            onSliceTap: (parentId) =>
+                                CategoryTransactionsSheet.show(
+                              context,
+                              parentCategoryId: parentId,
+                              filterCurrencies: {baseCurrency},
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -212,6 +230,7 @@ class HomeScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

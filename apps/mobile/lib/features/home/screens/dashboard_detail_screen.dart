@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/period_selector.dart';
 import '../../shared/providers/shared_providers.dart';
 import '../widgets/category_donut_chart.dart';
+import '../widgets/category_transactions_sheet.dart';
 
 class DashboardDetailScreen extends ConsumerStatefulWidget {
   const DashboardDetailScreen({super.key});
@@ -139,6 +140,12 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
                       CategoryDonutChart(
                         excludedCategoryIds: _excludedCategoryIds,
                         filterCurrencies: {baseCurrency},
+                        onSliceTap: (parentId) =>
+                            CategoryTransactionsSheet.show(
+                          context,
+                          parentCategoryId: parentId,
+                          filterCurrencies: {baseCurrency},
+                        ),
                       ),
                     ],
                   ),

@@ -7,8 +7,17 @@ import '../../shared/providers/shared_providers.dart';
 class CategoryDonutChart extends ConsumerStatefulWidget {
   final Set<String>? excludedCategoryIds;
   final Set<String>? filterCurrencies;
-  
-  const CategoryDonutChart({super.key, this.excludedCategoryIds, this.filterCurrencies});
+
+  /// Fired when the user taps a pie slice. Receives the **parent** category id
+  /// that the slice represents.
+  final void Function(String parentCategoryId)? onSliceTap;
+
+  const CategoryDonutChart({
+    super.key,
+    this.excludedCategoryIds,
+    this.filterCurrencies,
+    this.onSliceTap,
+  });
 
   @override
   ConsumerState<CategoryDonutChart> createState() => _CategoryDonutChartState();
@@ -16,6 +25,9 @@ class CategoryDonutChart extends ConsumerStatefulWidget {
 
 class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
   int _touchedIndex = -1;
+  // Most recent sorted slice → categoryId mapping, kept in sync with [build]
+  // so the touch callback can resolve the index back to a category id.
+  List<String> _sortedKeys = const [];
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +70,7 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
     // Sort to handle colors consistently
     final sortedEntries = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+    _sortedKeys = sortedEntries.map((e) => e.key).toList(growable: false);
 
     // Largest Remainder Method to ensure rounded percentages sum exactly to 100%
     final exactPercentages = sortedEntries.map((e) => totalSpent > 0 ? (e.value / totalSpent * 100) : 0.0).toList();
@@ -139,15 +152,28 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
                 PieChartData(
                   pieTouchData: PieTouchData(
                     touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                      final touched = pieTouchResponse?.touchedSection;
+                      // Always update the highlight ring while the finger is
+                      // interacting with the chart.
                       setState(() {
                         if (!event.isInterestedForInteractions ||
                             pieTouchResponse == null ||
-                            pieTouchResponse.touchedSection == null) {
+                            touched == null) {
                           _touchedIndex = -1;
                           return;
                         }
-                        _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                        _touchedIndex = touched.touchedSectionIndex;
                       });
+
+                      // Drill into transactions only on tap-up over a slice.
+                      if (event is FlTapUpEvent &&
+                          touched != null &&
+                          widget.onSliceTap != null) {
+                        final idx = touched.touchedSectionIndex;
+                        if (idx >= 0 && idx < _sortedKeys.length) {
+                          widget.onSliceTap!(_sortedKeys[idx]);
+                        }
+                      }
                     },
                   ),
                   borderData: FlBorderData(show: false),
