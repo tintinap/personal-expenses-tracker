@@ -80,22 +80,22 @@ model Transaction {
 // Categories
 // ──────────────────────────────────────────────────────────────
 model Category {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  name      String   @db.VarChar(50)
-  colourHex String   @map("colour_hex") @db.VarChar(7)
-  isDefault Boolean  @default(false) @map("is_default")
-  isHidden  Boolean  @default(false) @map("is_hidden")
-  sortOrder Int      @map("sort_order")
-  parentId  String?  @map("parent_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  name           String   @db.VarChar(50)
+  colourHex      String   @map("colour_hex") @db.VarChar(7)
+  iconCodePoint  Int      @default(0) @map("icon_code_point")
+  isDefault      Boolean  @default(false) @map("is_default")
+  isHidden       Boolean  @default(false) @map("is_hidden")
+  sortOrder      Int      @map("sort_order")
+  parentId       String?  @map("parent_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent       Category?     @relation("SubCategories", fields: [parentId], references: [id], onDelete: SetNull)
-  subCategories Category[]   @relation("SubCategories")
-  transactions Transaction[]
-  budgets      Budget[]
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Category?     @relation("SubCategories", fields: [parentId], references: [id], onDelete: SetNull)
+  subCategories Category[]    @relation("SubCategories")
+  transactions  Transaction[]
 
   @@index([userId])
   @@index([parentId])
@@ -106,23 +106,29 @@ model Category {
 // Budgets
 // ──────────────────────────────────────────────────────────────
 model Budget {
-  id           String    @id @default(uuid()) @db.Uuid
-  userId       String    @map("user_id") @db.Uuid
-  scope        String    @db.VarChar(10) // global | category
-  categoryId   String?   @map("category_id") @db.Uuid
-  amountBase   Decimal   @map("amount_base") @db.Decimal(12, 2)
-  periodType   String    @map("period_type") @db.VarChar(12)
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  name        String?   @db.VarChar(150)
+  // user-defined label; null → clients fall back to auto-generated display name
+  scopeType   String    @map("scope_type") @db.VarChar(10)
+  // all | include | exclude  (was: global | category)
+  categoryIds String?   @map("category_ids") @db.Text
+  // JSON array of category UUIDs; null when scopeType = 'all'
+  currency    String    @db.VarChar(3)
+  amountBase  Decimal   @map("amount_base") @db.Decimal(12, 2)
+  periodType  String    @map("period_type") @db.VarChar(12)
   // weekly | fortnightly | monthly | custom
-  startDate    DateTime  @map("start_date") @db.Date
-  endDate      DateTime? @map("end_date") @db.Date
-  isActive     Boolean   @default(true) @map("is_active")
-  notified80   Boolean   @default(false) @map("notified_80")
-  notified100  Boolean   @default(false) @map("notified_100")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  isRecurring Boolean   @default(true) @map("is_recurring")
+  startDate   DateTime  @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  isActive    Boolean   @default(true) @map("is_active")
+  notified75  Boolean   @default(false) @map("notified_75")
+  notified90  Boolean   @default(false) @map("notified_90")
+  notified100 Boolean   @default(false) @map("notified_100")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("budgets")

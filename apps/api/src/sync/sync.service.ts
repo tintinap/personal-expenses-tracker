@@ -179,6 +179,7 @@ export class SyncService {
           userId,
           name: payload.name,
           colourHex: payload.colourHex,
+          iconCodePoint: payload.iconCodePoint ?? 0,
           isDefault: payload.isDefault || false,
           isHidden: payload.isHidden || false,
           sortOrder: payload.sortOrder || 0,
@@ -197,6 +198,7 @@ export class SyncService {
         await this.repository.updateCategory(recordId, {
           name: payload.name,
           colourHex: payload.colourHex,
+          ...(payload.iconCodePoint !== undefined && { iconCodePoint: payload.iconCodePoint }),
           isHidden: payload.isHidden,
           parentId: payload.parentId,
         });
@@ -224,10 +226,13 @@ export class SyncService {
         await this.repository.createBudget({
           id: recordId,
           userId,
-          scope: payload.scope,
-          categoryId: payload.categoryId || null,
+          name: payload.name ?? null,
+          scopeType: payload.scopeType,
+          categoryIds: payload.categoryIds ?? null,
+          currency: payload.currency,
           amountBase: payload.amountBase,
           periodType: payload.periodType,
+          isRecurring: payload.isRecurring ?? true,
           startDate: new Date(payload.startDate),
           endDate: payload.endDate ? new Date(payload.endDate) : null,
           isActive: payload.isActive ?? true,
@@ -237,12 +242,18 @@ export class SyncService {
 
       case 'update': {
         await this.repository.updateBudget(recordId, {
+          name: payload.name ?? null,
+          scopeType: payload.scopeType,
+          categoryIds: payload.categoryIds ?? null,
+          currency: payload.currency,
           amountBase: payload.amountBase,
           periodType: payload.periodType,
+          isRecurring: payload.isRecurring ?? true,
           startDate: new Date(payload.startDate),
           endDate: payload.endDate ? new Date(payload.endDate) : null,
-          isActive: payload.isActive,
-          notified80: payload.notified80 ?? false,
+          isActive: payload.isActive ?? true,
+          notified75: payload.notified75 ?? false,
+          notified90: payload.notified90 ?? false,
           notified100: payload.notified100 ?? false,
         });
         break;
