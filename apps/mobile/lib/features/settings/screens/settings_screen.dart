@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/currency_helper.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/widgets/sign_in_banner.dart';
 import '../../export/providers/export_provider.dart';
 import '../../shared/providers/shared_providers.dart';
 
@@ -13,6 +15,8 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final baseCurrency = ref.watch(baseCurrencyProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final authState = ref.watch(authStateProvider);
+    final isLoggedIn = authState.isAuthenticated;
 
     return Scaffold(
       appBar: AppBar(
@@ -23,11 +27,14 @@ class SettingsScreen extends ConsumerWidget {
           _buildSectionHeader(context, 'Account'),
           ListTile(
             leading: const Icon(Icons.account_circle),
-            title: const Text('Sign In'),
-            subtitle: const Text('Sync data across devices'),
-            onTap: () {
-              // TODO: Auth flow
-            },
+            title: Text(isLoggedIn ? 'Signed In' : 'Sign In'),
+            subtitle: Text(isLoggedIn
+                ? 'Sync is active'
+                : 'Sign in to sync data across devices'),
+            trailing: isLoggedIn
+                ? const Icon(Icons.check_circle, color: Colors.green)
+                : null,
+            onTap: isLoggedIn ? null : () => _showSignInSheet(context),
           ),
           const Divider(),
           _buildSectionHeader(context, 'Preferences'),
@@ -59,23 +66,35 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.go('/settings/categories'),
           ),
           ListTile(
-            leading: const Icon(Icons.table_chart),
-            title: const Text('Google Sheets Sync'),
-            subtitle: const Text('Not connected'),
+            leading: Icon(
+              Icons.table_chart,
+              color: isLoggedIn ? null : Theme.of(context).disabledColor,
+            ),
+            title: Text(
+              'Google Sheets Sync',
+              style: isLoggedIn
+                  ? null
+                  : TextStyle(color: Theme.of(context).disabledColor),
+            ),
+            subtitle: Text(isLoggedIn ? 'Not connected' : 'Sign in required'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Google Sheets connect flow
+              if (!isLoggedIn) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please sign in to use Google Sheets sync'),
+                  ),
+                );
+                return;
+              }
+              // TODO: Google Sheets connect flow (requires auth)
             },
           ),
           ListTile(
             leading: const Icon(Icons.table_view),
             title: const Text('Export to Excel'),
-            onTap: () {
-              ref.read(exportProvider).exportToExcel();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Generating Excel export...')),
-              );
-            },
+            subtitle: const Text('Choose date range and export .xlsx'),
+            onTap: () => _showExportDateRangePicker(context, ref),
           ),
           const Divider(),
           _buildSectionHeader(context, 'About'),
@@ -101,6 +120,60 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _showSignInSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => const AuthBottomSheet(),
+    );
+  }
+
+  Future<void> _showExportDateRangePicker(BuildContext context, WidgetRef ref) async {
+    final now = DateTime.now();
+    final initialRange = DateTimeRange(
+      start: DateTime(now.year, 1, 1),
+      end: now,
+    );
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: initialRange,
+      helpText: 'Select export date range',
+      saveText: 'Export',
+    );
+
+    if (picked == null || !context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Generating Excel export...')),
+    );
+
+    final result = await ref.read(exportProvider).exportToExcel(
+      from: picked.start,
+      to: DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59),
+    );
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    if (result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported to: ${result.filePath}')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Export failed'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   String _currencyDisplayName(String code) {

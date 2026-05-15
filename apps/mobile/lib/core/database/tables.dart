@@ -68,17 +68,23 @@ class Categories extends Table {
 @DataClassName('BudgetData')
 class Budgets extends Table {
   TextColumn get id => text()();
-  TextColumn get scope => text().withLength(max: 10)();
-  TextColumn get categoryId => text().named('category_id').nullable()();
+  TextColumn get name => text().nullable()();
+  TextColumn get scopeType => text().named('scope_type').withLength(max: 10)();
+  TextColumn get categoryIds => text().named('category_ids').nullable()();
+  TextColumn get currency => text().withLength(max: 3)();
   RealColumn get amountBase => real().named('amount_base')();
   TextColumn get periodType =>
       text().named('period_type').withLength(max: 12)();
+  BoolColumn get isRecurring =>
+      boolean().named('is_recurring').withDefault(const Constant(true))();
   DateTimeColumn get startDate => dateTime().named('start_date')();
   DateTimeColumn get endDate => dateTime().named('end_date').nullable()();
   BoolColumn get isActive =>
       boolean().named('is_active').withDefault(const Constant(true))();
-  BoolColumn get notified80 =>
-      boolean().named('notified_80').withDefault(const Constant(false))();
+  BoolColumn get notified75 =>
+      boolean().named('notified_75').withDefault(const Constant(false))();
+  BoolColumn get notified90 =>
+      boolean().named('notified_90').withDefault(const Constant(false))();
   BoolColumn get notified100 =>
       boolean().named('notified_100').withDefault(const Constant(false))();
   TextColumn get syncStatus =>

@@ -194,6 +194,7 @@ class TransactionListTile extends ConsumerWidget {
     TransactionData tx, {
     CategoryData? category,
     CategoryData? parent,
+    String? exchangeRateLabel,
   }) {
     final theme = Theme.of(context);
     final note = tx.note?.trim();
@@ -266,6 +267,10 @@ class TransactionListTile extends ConsumerWidget {
                 'Amount',
                 '${tx.originalCurrency} ${tx.originalAmount.toStringAsFixed(2)}',
               ),
+              if (exchangeRateLabel != null) ...[
+                const SizedBox(height: 6),
+                _kv(theme, 'Rate', exchangeRateLabel),
+              ],
               const SizedBox(height: 12),
               Text(
                 'Note',
@@ -401,6 +406,23 @@ class TransactionListTile extends ConsumerWidget {
     );
   }
 
+  /// Compute a human-readable exchange-rate string from the two sides.
+  /// Returns e.g. "25.43 THB = 1 AUD" (how much source buys 1 unit of target).
+  String? _computeRateLabel({
+    required String fromCurrency,
+    required double fromAmount,
+    String? toCurrency,
+    double? toAmount,
+  }) {
+    if (toCurrency == null || toAmount == null || toAmount == 0) return null;
+    final rate = fromAmount / toAmount;
+    // Use up to 4 decimals, trimming trailing zeros.
+    final formatted = rate.toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+    return '$formatted $fromCurrency = 1 $toCurrency';
+  }
+
   Widget _buildExchangeTile(
     BuildContext context,
     WidgetRef ref,
@@ -416,6 +438,13 @@ class TransactionListTile extends ConsumerWidget {
     final fromAmount = outTx?.originalAmount ?? tx.originalAmount;
     final toCurrency = inTx?.originalCurrency;
     final toAmount = inTx?.originalAmount;
+
+    final rateLabel = _computeRateLabel(
+      fromCurrency: fromCurrency,
+      fromAmount: fromAmount,
+      toCurrency: toCurrency,
+      toAmount: toAmount,
+    );
 
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
     final hierarchy = _resolveCategoryHierarchy(categories, tx.categoryId);
@@ -435,6 +464,7 @@ class TransactionListTile extends ConsumerWidget {
           tx,
           category: hierarchy.sub ?? display,
           parent: hierarchy.sub != null ? display : null,
+          exchangeRateLabel: rateLabel,
         ),
         leading: display != null
             ? categoryGlyphAvatar(
@@ -453,7 +483,21 @@ class TransactionListTile extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: Text(DateFormat.jm().format(tx.transactionDate)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(DateFormat.jm().format(tx.transactionDate)),
+            if (rateLabel != null)
+              Text(
+                rateLabel,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.tertiary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,

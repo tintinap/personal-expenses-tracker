@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -62,8 +62,44 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(categories, categories.iconCodePoint);
           await _migrateCategoryIconsForExistingRows();
         }
+        if (from < 4) {
+          await m.addColumn(budgets, budgets.scopeType);
+          await m.addColumn(budgets, budgets.categoryIds);
+          await m.addColumn(budgets, budgets.currency);
+          await m.addColumn(budgets, budgets.isRecurring);
+          await m.addColumn(budgets, budgets.notified75);
+          await m.addColumn(budgets, budgets.notified90);
+          
+          await customStatement(
+            "UPDATE budgets SET scope_type = 'all', currency = 'AUD' WHERE scope = 'global'",
+          );
+          await customStatement(
+            "UPDATE budgets SET scope_type = 'include', "
+            "category_ids = '[\"' || category_id || '\"]', currency = 'AUD' "
+            "WHERE scope = 'category'",
+          );
+        }
+        if (from < 5) {
+          // Schema ≤3 used `scope` / `category_id` / `notified_80`; v4 added parallel
+          // columns but left legacy columns in SQLite. Drift INSERTs omit legacy fields,
+          // so NOT NULL `scope` caused new budget inserts to fail on upgraded DBs.
+          await _dropLegacyBudgetColumnsIfPresent();
+        }
+        if (from < 6) {
+          await m.addColumn(budgets, budgets.name);
+        }
       },
     );
+  }
+
+  /// Best-effort: fresh installs never had these columns; older SQLite may lack DROP COLUMN.
+  Future<void> _dropLegacyBudgetColumnsIfPresent() async {
+    const legacy = ['scope', 'category_id', 'notified_80'];
+    for (final col in legacy) {
+      try {
+        await customStatement('ALTER TABLE budgets DROP COLUMN $col');
+      } catch (_) {}
+    }
   }
 
   Future<void> _seedDefaultCategories() async {

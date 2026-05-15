@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../shared/providers/shared_providers.dart';
+import '../../../core/providers/database_providers.dart';
 import '../providers/budget_providers.dart';
 import '../widgets/budget_card.dart';
+import '../widgets/budget_bottom_sheet.dart';
 
 class BudgetsScreen extends ConsumerWidget {
   const BudgetsScreen({super.key});
@@ -12,7 +13,6 @@ class BudgetsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final progressListAsync = ref.watch(budgetProgressListProvider);
-    final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -28,7 +28,7 @@ class BudgetsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.savings_outlined, size: 64, color: theme.colorScheme.surfaceVariant),
+                  Icon(Icons.savings_outlined, size: 64, color: theme.colorScheme.surfaceContainerHighest),
                   const SizedBox(height: 16),
                   Text('No active budgets', style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 8),
@@ -56,8 +56,8 @@ class BudgetsScreen extends ConsumerWidget {
                     (context, index) {
                       final prog = progressList[index];
                       String? catName;
-                      if (prog.budget.scope == 'category') {
-                        catName = categories.where((c) => c.id == prog.budget.categoryId).firstOrNull?.name;
+                      if (prog.budget.scopeType == 'include') {
+                        catName = prog.categoryNames.join(', ');
                       }
 
                       return Padding(
@@ -66,6 +66,9 @@ class BudgetsScreen extends ConsumerWidget {
                           progress: prog,
                           categoryName: catName,
                           onTap: () => context.go('/budgets/${prog.budget.id}'),
+                          onDelete: () => ref
+                              .read(budgetDaoProvider)
+                              .deleteBudget(prog.budget.id),
                         ),
                       );
                     },
@@ -80,7 +83,12 @@ class BudgetsScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Open Add Budget bottom sheet
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            builder: (context) => const BudgetBottomSheet(),
+          );
         },
         child: const Icon(Icons.add),
       ),

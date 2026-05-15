@@ -1527,19 +1527,33 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
-  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
-      'scope', aliasedName, false,
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _scopeTypeMeta =
+      const VerificationMeta('scopeType');
+  @override
+  late final GeneratedColumn<String> scopeType = GeneratedColumn<String>(
+      'scope_type', aliasedName, false,
       additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 10),
       type: DriftSqlType.string,
       requiredDuringInsert: true);
-  static const VerificationMeta _categoryIdMeta =
-      const VerificationMeta('categoryId');
+  static const VerificationMeta _categoryIdsMeta =
+      const VerificationMeta('categoryIds');
   @override
-  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
-      'category_id', aliasedName, true,
+  late final GeneratedColumn<String> categoryIds = GeneratedColumn<String>(
+      'category_ids', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _currencyMeta =
+      const VerificationMeta('currency');
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+      'currency', aliasedName, false,
+      additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 3),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
   static const VerificationMeta _amountBaseMeta =
       const VerificationMeta('amountBase');
   @override
@@ -1554,6 +1568,16 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
       additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 12),
       type: DriftSqlType.string,
       requiredDuringInsert: true);
+  static const VerificationMeta _isRecurringMeta =
+      const VerificationMeta('isRecurring');
+  @override
+  late final GeneratedColumn<bool> isRecurring = GeneratedColumn<bool>(
+      'is_recurring', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_recurring" IN (0, 1))'),
+      defaultValue: const Constant(true));
   static const VerificationMeta _startDateMeta =
       const VerificationMeta('startDate');
   @override
@@ -1576,15 +1600,25 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_active" IN (0, 1))'),
       defaultValue: const Constant(true));
-  static const VerificationMeta _notified80Meta =
-      const VerificationMeta('notified80');
+  static const VerificationMeta _notified75Meta =
+      const VerificationMeta('notified75');
   @override
-  late final GeneratedColumn<bool> notified80 = GeneratedColumn<bool>(
-      'notified_80', aliasedName, false,
+  late final GeneratedColumn<bool> notified75 = GeneratedColumn<bool>(
+      'notified_75', aliasedName, false,
       type: DriftSqlType.bool,
       requiredDuringInsert: false,
       defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("notified_80" IN (0, 1))'),
+          GeneratedColumn.constraintIsAlways('CHECK ("notified_75" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _notified90Meta =
+      const VerificationMeta('notified90');
+  @override
+  late final GeneratedColumn<bool> notified90 = GeneratedColumn<bool>(
+      'notified_90', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("notified_90" IN (0, 1))'),
       defaultValue: const Constant(false));
   static const VerificationMeta _notified100Meta =
       const VerificationMeta('notified100');
@@ -1623,14 +1657,18 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
   @override
   List<GeneratedColumn> get $columns => [
         id,
-        scope,
-        categoryId,
+        name,
+        scopeType,
+        categoryIds,
+        currency,
         amountBase,
         periodType,
+        isRecurring,
         startDate,
         endDate,
         isActive,
-        notified80,
+        notified75,
+        notified90,
         notified100,
         syncStatus,
         createdAt,
@@ -1651,17 +1689,27 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
     } else if (isInserting) {
       context.missing(_idMeta);
     }
-    if (data.containsKey('scope')) {
+    if (data.containsKey('name')) {
       context.handle(
-          _scopeMeta, scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta));
-    } else if (isInserting) {
-      context.missing(_scopeMeta);
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
     }
-    if (data.containsKey('category_id')) {
+    if (data.containsKey('scope_type')) {
+      context.handle(_scopeTypeMeta,
+          scopeType.isAcceptableOrUnknown(data['scope_type']!, _scopeTypeMeta));
+    } else if (isInserting) {
+      context.missing(_scopeTypeMeta);
+    }
+    if (data.containsKey('category_ids')) {
       context.handle(
-          _categoryIdMeta,
-          categoryId.isAcceptableOrUnknown(
-              data['category_id']!, _categoryIdMeta));
+          _categoryIdsMeta,
+          categoryIds.isAcceptableOrUnknown(
+              data['category_ids']!, _categoryIdsMeta));
+    }
+    if (data.containsKey('currency')) {
+      context.handle(_currencyMeta,
+          currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta));
+    } else if (isInserting) {
+      context.missing(_currencyMeta);
     }
     if (data.containsKey('amount_base')) {
       context.handle(
@@ -1679,6 +1727,12 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
     } else if (isInserting) {
       context.missing(_periodTypeMeta);
     }
+    if (data.containsKey('is_recurring')) {
+      context.handle(
+          _isRecurringMeta,
+          isRecurring.isAcceptableOrUnknown(
+              data['is_recurring']!, _isRecurringMeta));
+    }
     if (data.containsKey('start_date')) {
       context.handle(_startDateMeta,
           startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta));
@@ -1693,11 +1747,17 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
       context.handle(_isActiveMeta,
           isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
     }
-    if (data.containsKey('notified_80')) {
+    if (data.containsKey('notified_75')) {
       context.handle(
-          _notified80Meta,
-          notified80.isAcceptableOrUnknown(
-              data['notified_80']!, _notified80Meta));
+          _notified75Meta,
+          notified75.isAcceptableOrUnknown(
+              data['notified_75']!, _notified75Meta));
+    }
+    if (data.containsKey('notified_90')) {
+      context.handle(
+          _notified90Meta,
+          notified90.isAcceptableOrUnknown(
+              data['notified_90']!, _notified90Meta));
     }
     if (data.containsKey('notified_100')) {
       context.handle(
@@ -1730,22 +1790,30 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
     return BudgetData(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      scope: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}scope'])!,
-      categoryId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}category_id']),
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name']),
+      scopeType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}scope_type'])!,
+      categoryIds: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category_ids']),
+      currency: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
       amountBase: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}amount_base'])!,
       periodType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}period_type'])!,
+      isRecurring: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_recurring'])!,
       startDate: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}start_date'])!,
       endDate: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}end_date']),
       isActive: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
-      notified80: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}notified_80'])!,
+      notified75: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}notified_75'])!,
+      notified90: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}notified_90'])!,
       notified100: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}notified_100'])!,
       syncStatus: attachedDatabase.typeMapping
@@ -1765,28 +1833,36 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, BudgetData> {
 
 class BudgetData extends DataClass implements Insertable<BudgetData> {
   final String id;
-  final String scope;
-  final String? categoryId;
+  final String? name;
+  final String scopeType;
+  final String? categoryIds;
+  final String currency;
   final double amountBase;
   final String periodType;
+  final bool isRecurring;
   final DateTime startDate;
   final DateTime? endDate;
   final bool isActive;
-  final bool notified80;
+  final bool notified75;
+  final bool notified90;
   final bool notified100;
   final String syncStatus;
   final DateTime createdAt;
   final DateTime updatedAt;
   const BudgetData(
       {required this.id,
-      required this.scope,
-      this.categoryId,
+      this.name,
+      required this.scopeType,
+      this.categoryIds,
+      required this.currency,
       required this.amountBase,
       required this.periodType,
+      required this.isRecurring,
       required this.startDate,
       this.endDate,
       required this.isActive,
-      required this.notified80,
+      required this.notified75,
+      required this.notified90,
       required this.notified100,
       required this.syncStatus,
       required this.createdAt,
@@ -1795,18 +1871,24 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['scope'] = Variable<String>(scope);
-    if (!nullToAbsent || categoryId != null) {
-      map['category_id'] = Variable<String>(categoryId);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
     }
+    map['scope_type'] = Variable<String>(scopeType);
+    if (!nullToAbsent || categoryIds != null) {
+      map['category_ids'] = Variable<String>(categoryIds);
+    }
+    map['currency'] = Variable<String>(currency);
     map['amount_base'] = Variable<double>(amountBase);
     map['period_type'] = Variable<String>(periodType);
+    map['is_recurring'] = Variable<bool>(isRecurring);
     map['start_date'] = Variable<DateTime>(startDate);
     if (!nullToAbsent || endDate != null) {
       map['end_date'] = Variable<DateTime>(endDate);
     }
     map['is_active'] = Variable<bool>(isActive);
-    map['notified_80'] = Variable<bool>(notified80);
+    map['notified_75'] = Variable<bool>(notified75);
+    map['notified_90'] = Variable<bool>(notified90);
     map['notified_100'] = Variable<bool>(notified100);
     map['sync_status'] = Variable<String>(syncStatus);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -1817,18 +1899,22 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
   BudgetsCompanion toCompanion(bool nullToAbsent) {
     return BudgetsCompanion(
       id: Value(id),
-      scope: Value(scope),
-      categoryId: categoryId == null && nullToAbsent
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      scopeType: Value(scopeType),
+      categoryIds: categoryIds == null && nullToAbsent
           ? const Value.absent()
-          : Value(categoryId),
+          : Value(categoryIds),
+      currency: Value(currency),
       amountBase: Value(amountBase),
       periodType: Value(periodType),
+      isRecurring: Value(isRecurring),
       startDate: Value(startDate),
       endDate: endDate == null && nullToAbsent
           ? const Value.absent()
           : Value(endDate),
       isActive: Value(isActive),
-      notified80: Value(notified80),
+      notified75: Value(notified75),
+      notified90: Value(notified90),
       notified100: Value(notified100),
       syncStatus: Value(syncStatus),
       createdAt: Value(createdAt),
@@ -1841,14 +1927,18 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return BudgetData(
       id: serializer.fromJson<String>(json['id']),
-      scope: serializer.fromJson<String>(json['scope']),
-      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      name: serializer.fromJson<String?>(json['name']),
+      scopeType: serializer.fromJson<String>(json['scopeType']),
+      categoryIds: serializer.fromJson<String?>(json['categoryIds']),
+      currency: serializer.fromJson<String>(json['currency']),
       amountBase: serializer.fromJson<double>(json['amountBase']),
       periodType: serializer.fromJson<String>(json['periodType']),
+      isRecurring: serializer.fromJson<bool>(json['isRecurring']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
       isActive: serializer.fromJson<bool>(json['isActive']),
-      notified80: serializer.fromJson<bool>(json['notified80']),
+      notified75: serializer.fromJson<bool>(json['notified75']),
+      notified90: serializer.fromJson<bool>(json['notified90']),
       notified100: serializer.fromJson<bool>(json['notified100']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1860,14 +1950,18 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'scope': serializer.toJson<String>(scope),
-      'categoryId': serializer.toJson<String?>(categoryId),
+      'name': serializer.toJson<String?>(name),
+      'scopeType': serializer.toJson<String>(scopeType),
+      'categoryIds': serializer.toJson<String?>(categoryIds),
+      'currency': serializer.toJson<String>(currency),
       'amountBase': serializer.toJson<double>(amountBase),
       'periodType': serializer.toJson<String>(periodType),
+      'isRecurring': serializer.toJson<bool>(isRecurring),
       'startDate': serializer.toJson<DateTime>(startDate),
       'endDate': serializer.toJson<DateTime?>(endDate),
       'isActive': serializer.toJson<bool>(isActive),
-      'notified80': serializer.toJson<bool>(notified80),
+      'notified75': serializer.toJson<bool>(notified75),
+      'notified90': serializer.toJson<bool>(notified90),
       'notified100': serializer.toJson<bool>(notified100),
       'syncStatus': serializer.toJson<String>(syncStatus),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1877,28 +1971,36 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
 
   BudgetData copyWith(
           {String? id,
-          String? scope,
-          Value<String?> categoryId = const Value.absent(),
+          Value<String?> name = const Value.absent(),
+          String? scopeType,
+          Value<String?> categoryIds = const Value.absent(),
+          String? currency,
           double? amountBase,
           String? periodType,
+          bool? isRecurring,
           DateTime? startDate,
           Value<DateTime?> endDate = const Value.absent(),
           bool? isActive,
-          bool? notified80,
+          bool? notified75,
+          bool? notified90,
           bool? notified100,
           String? syncStatus,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       BudgetData(
         id: id ?? this.id,
-        scope: scope ?? this.scope,
-        categoryId: categoryId.present ? categoryId.value : this.categoryId,
+        name: name.present ? name.value : this.name,
+        scopeType: scopeType ?? this.scopeType,
+        categoryIds: categoryIds.present ? categoryIds.value : this.categoryIds,
+        currency: currency ?? this.currency,
         amountBase: amountBase ?? this.amountBase,
         periodType: periodType ?? this.periodType,
+        isRecurring: isRecurring ?? this.isRecurring,
         startDate: startDate ?? this.startDate,
         endDate: endDate.present ? endDate.value : this.endDate,
         isActive: isActive ?? this.isActive,
-        notified80: notified80 ?? this.notified80,
+        notified75: notified75 ?? this.notified75,
+        notified90: notified90 ?? this.notified90,
         notified100: notified100 ?? this.notified100,
         syncStatus: syncStatus ?? this.syncStatus,
         createdAt: createdAt ?? this.createdAt,
@@ -1907,18 +2009,24 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
   BudgetData copyWithCompanion(BudgetsCompanion data) {
     return BudgetData(
       id: data.id.present ? data.id.value : this.id,
-      scope: data.scope.present ? data.scope.value : this.scope,
-      categoryId:
-          data.categoryId.present ? data.categoryId.value : this.categoryId,
+      name: data.name.present ? data.name.value : this.name,
+      scopeType: data.scopeType.present ? data.scopeType.value : this.scopeType,
+      categoryIds:
+          data.categoryIds.present ? data.categoryIds.value : this.categoryIds,
+      currency: data.currency.present ? data.currency.value : this.currency,
       amountBase:
           data.amountBase.present ? data.amountBase.value : this.amountBase,
       periodType:
           data.periodType.present ? data.periodType.value : this.periodType,
+      isRecurring:
+          data.isRecurring.present ? data.isRecurring.value : this.isRecurring,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
-      notified80:
-          data.notified80.present ? data.notified80.value : this.notified80,
+      notified75:
+          data.notified75.present ? data.notified75.value : this.notified75,
+      notified90:
+          data.notified90.present ? data.notified90.value : this.notified90,
       notified100:
           data.notified100.present ? data.notified100.value : this.notified100,
       syncStatus:
@@ -1932,14 +2040,18 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
   String toString() {
     return (StringBuffer('BudgetData(')
           ..write('id: $id, ')
-          ..write('scope: $scope, ')
-          ..write('categoryId: $categoryId, ')
+          ..write('name: $name, ')
+          ..write('scopeType: $scopeType, ')
+          ..write('categoryIds: $categoryIds, ')
+          ..write('currency: $currency, ')
           ..write('amountBase: $amountBase, ')
           ..write('periodType: $periodType, ')
+          ..write('isRecurring: $isRecurring, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
           ..write('isActive: $isActive, ')
-          ..write('notified80: $notified80, ')
+          ..write('notified75: $notified75, ')
+          ..write('notified90: $notified90, ')
           ..write('notified100: $notified100, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('createdAt: $createdAt, ')
@@ -1951,14 +2063,18 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
   @override
   int get hashCode => Object.hash(
       id,
-      scope,
-      categoryId,
+      name,
+      scopeType,
+      categoryIds,
+      currency,
       amountBase,
       periodType,
+      isRecurring,
       startDate,
       endDate,
       isActive,
-      notified80,
+      notified75,
+      notified90,
       notified100,
       syncStatus,
       createdAt,
@@ -1968,14 +2084,18 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
       identical(this, other) ||
       (other is BudgetData &&
           other.id == this.id &&
-          other.scope == this.scope &&
-          other.categoryId == this.categoryId &&
+          other.name == this.name &&
+          other.scopeType == this.scopeType &&
+          other.categoryIds == this.categoryIds &&
+          other.currency == this.currency &&
           other.amountBase == this.amountBase &&
           other.periodType == this.periodType &&
+          other.isRecurring == this.isRecurring &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
           other.isActive == this.isActive &&
-          other.notified80 == this.notified80 &&
+          other.notified75 == this.notified75 &&
+          other.notified90 == this.notified90 &&
           other.notified100 == this.notified100 &&
           other.syncStatus == this.syncStatus &&
           other.createdAt == this.createdAt &&
@@ -1984,14 +2104,18 @@ class BudgetData extends DataClass implements Insertable<BudgetData> {
 
 class BudgetsCompanion extends UpdateCompanion<BudgetData> {
   final Value<String> id;
-  final Value<String> scope;
-  final Value<String?> categoryId;
+  final Value<String?> name;
+  final Value<String> scopeType;
+  final Value<String?> categoryIds;
+  final Value<String> currency;
   final Value<double> amountBase;
   final Value<String> periodType;
+  final Value<bool> isRecurring;
   final Value<DateTime> startDate;
   final Value<DateTime?> endDate;
   final Value<bool> isActive;
-  final Value<bool> notified80;
+  final Value<bool> notified75;
+  final Value<bool> notified90;
   final Value<bool> notified100;
   final Value<String> syncStatus;
   final Value<DateTime> createdAt;
@@ -1999,14 +2123,18 @@ class BudgetsCompanion extends UpdateCompanion<BudgetData> {
   final Value<int> rowid;
   const BudgetsCompanion({
     this.id = const Value.absent(),
-    this.scope = const Value.absent(),
-    this.categoryId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.scopeType = const Value.absent(),
+    this.categoryIds = const Value.absent(),
+    this.currency = const Value.absent(),
     this.amountBase = const Value.absent(),
     this.periodType = const Value.absent(),
+    this.isRecurring = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
     this.isActive = const Value.absent(),
-    this.notified80 = const Value.absent(),
+    this.notified75 = const Value.absent(),
+    this.notified90 = const Value.absent(),
     this.notified100 = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -2015,34 +2143,43 @@ class BudgetsCompanion extends UpdateCompanion<BudgetData> {
   });
   BudgetsCompanion.insert({
     required String id,
-    required String scope,
-    this.categoryId = const Value.absent(),
+    this.name = const Value.absent(),
+    required String scopeType,
+    this.categoryIds = const Value.absent(),
+    required String currency,
     required double amountBase,
     required String periodType,
+    this.isRecurring = const Value.absent(),
     required DateTime startDate,
     this.endDate = const Value.absent(),
     this.isActive = const Value.absent(),
-    this.notified80 = const Value.absent(),
+    this.notified75 = const Value.absent(),
+    this.notified90 = const Value.absent(),
     this.notified100 = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
-        scope = Value(scope),
+        scopeType = Value(scopeType),
+        currency = Value(currency),
         amountBase = Value(amountBase),
         periodType = Value(periodType),
         startDate = Value(startDate);
   static Insertable<BudgetData> custom({
     Expression<String>? id,
-    Expression<String>? scope,
-    Expression<String>? categoryId,
+    Expression<String>? name,
+    Expression<String>? scopeType,
+    Expression<String>? categoryIds,
+    Expression<String>? currency,
     Expression<double>? amountBase,
     Expression<String>? periodType,
+    Expression<bool>? isRecurring,
     Expression<DateTime>? startDate,
     Expression<DateTime>? endDate,
     Expression<bool>? isActive,
-    Expression<bool>? notified80,
+    Expression<bool>? notified75,
+    Expression<bool>? notified90,
     Expression<bool>? notified100,
     Expression<String>? syncStatus,
     Expression<DateTime>? createdAt,
@@ -2051,14 +2188,18 @@ class BudgetsCompanion extends UpdateCompanion<BudgetData> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (scope != null) 'scope': scope,
-      if (categoryId != null) 'category_id': categoryId,
+      if (name != null) 'name': name,
+      if (scopeType != null) 'scope_type': scopeType,
+      if (categoryIds != null) 'category_ids': categoryIds,
+      if (currency != null) 'currency': currency,
       if (amountBase != null) 'amount_base': amountBase,
       if (periodType != null) 'period_type': periodType,
+      if (isRecurring != null) 'is_recurring': isRecurring,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
       if (isActive != null) 'is_active': isActive,
-      if (notified80 != null) 'notified_80': notified80,
+      if (notified75 != null) 'notified_75': notified75,
+      if (notified90 != null) 'notified_90': notified90,
       if (notified100 != null) 'notified_100': notified100,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (createdAt != null) 'created_at': createdAt,
@@ -2069,14 +2210,18 @@ class BudgetsCompanion extends UpdateCompanion<BudgetData> {
 
   BudgetsCompanion copyWith(
       {Value<String>? id,
-      Value<String>? scope,
-      Value<String?>? categoryId,
+      Value<String?>? name,
+      Value<String>? scopeType,
+      Value<String?>? categoryIds,
+      Value<String>? currency,
       Value<double>? amountBase,
       Value<String>? periodType,
+      Value<bool>? isRecurring,
       Value<DateTime>? startDate,
       Value<DateTime?>? endDate,
       Value<bool>? isActive,
-      Value<bool>? notified80,
+      Value<bool>? notified75,
+      Value<bool>? notified90,
       Value<bool>? notified100,
       Value<String>? syncStatus,
       Value<DateTime>? createdAt,
@@ -2084,14 +2229,18 @@ class BudgetsCompanion extends UpdateCompanion<BudgetData> {
       Value<int>? rowid}) {
     return BudgetsCompanion(
       id: id ?? this.id,
-      scope: scope ?? this.scope,
-      categoryId: categoryId ?? this.categoryId,
+      name: name ?? this.name,
+      scopeType: scopeType ?? this.scopeType,
+      categoryIds: categoryIds ?? this.categoryIds,
+      currency: currency ?? this.currency,
       amountBase: amountBase ?? this.amountBase,
       periodType: periodType ?? this.periodType,
+      isRecurring: isRecurring ?? this.isRecurring,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       isActive: isActive ?? this.isActive,
-      notified80: notified80 ?? this.notified80,
+      notified75: notified75 ?? this.notified75,
+      notified90: notified90 ?? this.notified90,
       notified100: notified100 ?? this.notified100,
       syncStatus: syncStatus ?? this.syncStatus,
       createdAt: createdAt ?? this.createdAt,
@@ -2106,17 +2255,26 @@ class BudgetsCompanion extends UpdateCompanion<BudgetData> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (scope.present) {
-      map['scope'] = Variable<String>(scope.value);
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
     }
-    if (categoryId.present) {
-      map['category_id'] = Variable<String>(categoryId.value);
+    if (scopeType.present) {
+      map['scope_type'] = Variable<String>(scopeType.value);
+    }
+    if (categoryIds.present) {
+      map['category_ids'] = Variable<String>(categoryIds.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
     }
     if (amountBase.present) {
       map['amount_base'] = Variable<double>(amountBase.value);
     }
     if (periodType.present) {
       map['period_type'] = Variable<String>(periodType.value);
+    }
+    if (isRecurring.present) {
+      map['is_recurring'] = Variable<bool>(isRecurring.value);
     }
     if (startDate.present) {
       map['start_date'] = Variable<DateTime>(startDate.value);
@@ -2127,8 +2285,11 @@ class BudgetsCompanion extends UpdateCompanion<BudgetData> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
-    if (notified80.present) {
-      map['notified_80'] = Variable<bool>(notified80.value);
+    if (notified75.present) {
+      map['notified_75'] = Variable<bool>(notified75.value);
+    }
+    if (notified90.present) {
+      map['notified_90'] = Variable<bool>(notified90.value);
     }
     if (notified100.present) {
       map['notified_100'] = Variable<bool>(notified100.value);
@@ -2152,14 +2313,18 @@ class BudgetsCompanion extends UpdateCompanion<BudgetData> {
   String toString() {
     return (StringBuffer('BudgetsCompanion(')
           ..write('id: $id, ')
-          ..write('scope: $scope, ')
-          ..write('categoryId: $categoryId, ')
+          ..write('name: $name, ')
+          ..write('scopeType: $scopeType, ')
+          ..write('categoryIds: $categoryIds, ')
+          ..write('currency: $currency, ')
           ..write('amountBase: $amountBase, ')
           ..write('periodType: $periodType, ')
+          ..write('isRecurring: $isRecurring, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
           ..write('isActive: $isActive, ')
-          ..write('notified80: $notified80, ')
+          ..write('notified75: $notified75, ')
+          ..write('notified90: $notified90, ')
           ..write('notified100: $notified100, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('createdAt: $createdAt, ')
@@ -4168,14 +4333,18 @@ typedef $$CategoriesTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function()>;
 typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
   required String id,
-  required String scope,
-  Value<String?> categoryId,
+  Value<String?> name,
+  required String scopeType,
+  Value<String?> categoryIds,
+  required String currency,
   required double amountBase,
   required String periodType,
+  Value<bool> isRecurring,
   required DateTime startDate,
   Value<DateTime?> endDate,
   Value<bool> isActive,
-  Value<bool> notified80,
+  Value<bool> notified75,
+  Value<bool> notified90,
   Value<bool> notified100,
   Value<String> syncStatus,
   Value<DateTime> createdAt,
@@ -4184,14 +4353,18 @@ typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
 });
 typedef $$BudgetsTableUpdateCompanionBuilder = BudgetsCompanion Function({
   Value<String> id,
-  Value<String> scope,
-  Value<String?> categoryId,
+  Value<String?> name,
+  Value<String> scopeType,
+  Value<String?> categoryIds,
+  Value<String> currency,
   Value<double> amountBase,
   Value<String> periodType,
+  Value<bool> isRecurring,
   Value<DateTime> startDate,
   Value<DateTime?> endDate,
   Value<bool> isActive,
-  Value<bool> notified80,
+  Value<bool> notified75,
+  Value<bool> notified90,
   Value<bool> notified100,
   Value<String> syncStatus,
   Value<DateTime> createdAt,
@@ -4211,17 +4384,26 @@ class $$BudgetsTableFilterComposer
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get scope => $composableBuilder(
-      column: $table.scope, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get categoryId => $composableBuilder(
-      column: $table.categoryId, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get scopeType => $composableBuilder(
+      column: $table.scopeType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get categoryIds => $composableBuilder(
+      column: $table.categoryIds, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get currency => $composableBuilder(
+      column: $table.currency, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get amountBase => $composableBuilder(
       column: $table.amountBase, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get periodType => $composableBuilder(
       column: $table.periodType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isRecurring => $composableBuilder(
+      column: $table.isRecurring, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get startDate => $composableBuilder(
       column: $table.startDate, builder: (column) => ColumnFilters(column));
@@ -4232,8 +4414,11 @@ class $$BudgetsTableFilterComposer
   ColumnFilters<bool> get isActive => $composableBuilder(
       column: $table.isActive, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<bool> get notified80 => $composableBuilder(
-      column: $table.notified80, builder: (column) => ColumnFilters(column));
+  ColumnFilters<bool> get notified75 => $composableBuilder(
+      column: $table.notified75, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get notified90 => $composableBuilder(
+      column: $table.notified90, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get notified100 => $composableBuilder(
       column: $table.notified100, builder: (column) => ColumnFilters(column));
@@ -4260,17 +4445,26 @@ class $$BudgetsTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get scope => $composableBuilder(
-      column: $table.scope, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get categoryId => $composableBuilder(
-      column: $table.categoryId, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get scopeType => $composableBuilder(
+      column: $table.scopeType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get categoryIds => $composableBuilder(
+      column: $table.categoryIds, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get currency => $composableBuilder(
+      column: $table.currency, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<double> get amountBase => $composableBuilder(
       column: $table.amountBase, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get periodType => $composableBuilder(
       column: $table.periodType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isRecurring => $composableBuilder(
+      column: $table.isRecurring, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get startDate => $composableBuilder(
       column: $table.startDate, builder: (column) => ColumnOrderings(column));
@@ -4281,8 +4475,11 @@ class $$BudgetsTableOrderingComposer
   ColumnOrderings<bool> get isActive => $composableBuilder(
       column: $table.isActive, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<bool> get notified80 => $composableBuilder(
-      column: $table.notified80, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<bool> get notified75 => $composableBuilder(
+      column: $table.notified75, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get notified90 => $composableBuilder(
+      column: $table.notified90, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get notified100 => $composableBuilder(
       column: $table.notified100, builder: (column) => ColumnOrderings(column));
@@ -4309,17 +4506,26 @@ class $$BudgetsTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get scope =>
-      $composableBuilder(column: $table.scope, builder: (column) => column);
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
 
-  GeneratedColumn<String> get categoryId => $composableBuilder(
-      column: $table.categoryId, builder: (column) => column);
+  GeneratedColumn<String> get scopeType =>
+      $composableBuilder(column: $table.scopeType, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryIds => $composableBuilder(
+      column: $table.categoryIds, builder: (column) => column);
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
 
   GeneratedColumn<double> get amountBase => $composableBuilder(
       column: $table.amountBase, builder: (column) => column);
 
   GeneratedColumn<String> get periodType => $composableBuilder(
       column: $table.periodType, builder: (column) => column);
+
+  GeneratedColumn<bool> get isRecurring => $composableBuilder(
+      column: $table.isRecurring, builder: (column) => column);
 
   GeneratedColumn<DateTime> get startDate =>
       $composableBuilder(column: $table.startDate, builder: (column) => column);
@@ -4330,8 +4536,11 @@ class $$BudgetsTableAnnotationComposer
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
 
-  GeneratedColumn<bool> get notified80 => $composableBuilder(
-      column: $table.notified80, builder: (column) => column);
+  GeneratedColumn<bool> get notified75 => $composableBuilder(
+      column: $table.notified75, builder: (column) => column);
+
+  GeneratedColumn<bool> get notified90 => $composableBuilder(
+      column: $table.notified90, builder: (column) => column);
 
   GeneratedColumn<bool> get notified100 => $composableBuilder(
       column: $table.notified100, builder: (column) => column);
@@ -4370,14 +4579,18 @@ class $$BudgetsTableTableManager extends RootTableManager<
               $$BudgetsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
-            Value<String> scope = const Value.absent(),
-            Value<String?> categoryId = const Value.absent(),
+            Value<String?> name = const Value.absent(),
+            Value<String> scopeType = const Value.absent(),
+            Value<String?> categoryIds = const Value.absent(),
+            Value<String> currency = const Value.absent(),
             Value<double> amountBase = const Value.absent(),
             Value<String> periodType = const Value.absent(),
+            Value<bool> isRecurring = const Value.absent(),
             Value<DateTime> startDate = const Value.absent(),
             Value<DateTime?> endDate = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
-            Value<bool> notified80 = const Value.absent(),
+            Value<bool> notified75 = const Value.absent(),
+            Value<bool> notified90 = const Value.absent(),
             Value<bool> notified100 = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -4386,14 +4599,18 @@ class $$BudgetsTableTableManager extends RootTableManager<
           }) =>
               BudgetsCompanion(
             id: id,
-            scope: scope,
-            categoryId: categoryId,
+            name: name,
+            scopeType: scopeType,
+            categoryIds: categoryIds,
+            currency: currency,
             amountBase: amountBase,
             periodType: periodType,
+            isRecurring: isRecurring,
             startDate: startDate,
             endDate: endDate,
             isActive: isActive,
-            notified80: notified80,
+            notified75: notified75,
+            notified90: notified90,
             notified100: notified100,
             syncStatus: syncStatus,
             createdAt: createdAt,
@@ -4402,14 +4619,18 @@ class $$BudgetsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
-            required String scope,
-            Value<String?> categoryId = const Value.absent(),
+            Value<String?> name = const Value.absent(),
+            required String scopeType,
+            Value<String?> categoryIds = const Value.absent(),
+            required String currency,
             required double amountBase,
             required String periodType,
+            Value<bool> isRecurring = const Value.absent(),
             required DateTime startDate,
             Value<DateTime?> endDate = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
-            Value<bool> notified80 = const Value.absent(),
+            Value<bool> notified75 = const Value.absent(),
+            Value<bool> notified90 = const Value.absent(),
             Value<bool> notified100 = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -4418,14 +4639,18 @@ class $$BudgetsTableTableManager extends RootTableManager<
           }) =>
               BudgetsCompanion.insert(
             id: id,
-            scope: scope,
-            categoryId: categoryId,
+            name: name,
+            scopeType: scopeType,
+            categoryIds: categoryIds,
+            currency: currency,
             amountBase: amountBase,
             periodType: periodType,
+            isRecurring: isRecurring,
             startDate: startDate,
             endDate: endDate,
             isActive: isActive,
-            notified80: notified80,
+            notified75: notified75,
+            notified90: notified90,
             notified100: notified100,
             syncStatus: syncStatus,
             createdAt: createdAt,

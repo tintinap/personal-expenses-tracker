@@ -147,6 +147,58 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
     return result.fold<double>(0.0, (double sum, tx) => sum + tx.amountBase);
   }
 
+  /// Sum expenses in a specific currency within a date range
+  Future<double> sumExpensesByCurrency(
+    String currency,
+    DateTime from,
+    DateTime to,
+  ) async {
+    final result = await (select(transactions)
+          ..where((t) => t.originalCurrency.equals(currency))
+          ..where((t) => t.transactionType.equals('expense'))
+          ..where((t) => t.transactionDate.isBetweenValues(from, to))
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
+
+    return result.fold<double>(0.0, (double sum, tx) => sum + tx.originalAmount);
+  }
+
+  /// Sum expenses in specific currency + specific categories
+  Future<double> sumExpensesByCurrencyAndCategories(
+    String currency,
+    List<String> categoryIds,
+    DateTime from,
+    DateTime to,
+  ) async {
+    final result = await (select(transactions)
+          ..where((t) => t.originalCurrency.equals(currency))
+          ..where((t) => t.categoryId.isIn(categoryIds))
+          ..where((t) => t.transactionType.equals('expense'))
+          ..where((t) => t.transactionDate.isBetweenValues(from, to))
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
+
+    return result.fold<double>(0.0, (double sum, tx) => sum + tx.originalAmount);
+  }
+
+  /// Sum expenses in specific currency EXCLUDING specific categories
+  Future<double> sumExpensesByCurrencyExcludingCategories(
+    String currency,
+    List<String> excludeIds,
+    DateTime from,
+    DateTime to,
+  ) async {
+    final result = await (select(transactions)
+          ..where((t) => t.originalCurrency.equals(currency))
+          ..where((t) => t.categoryId.isNotIn(excludeIds))
+          ..where((t) => t.transactionType.equals('expense'))
+          ..where((t) => t.transactionDate.isBetweenValues(from, to))
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
+
+    return result.fold<double>(0.0, (double sum, tx) => sum + tx.originalAmount);
+  }
+
   /// One-shot variant of [watchCountByCurrency].
   Future<Map<String, int>> countByCurrency() async {
     final countExpr = transactions.id.count();

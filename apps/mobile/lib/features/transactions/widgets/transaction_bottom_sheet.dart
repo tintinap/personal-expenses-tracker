@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -6,6 +8,7 @@ import '../../../core/database/database.dart';
 import '../../../core/providers/database_providers.dart';
 import '../../categories/widgets/category_bottom_sheet.dart';
 import '../../shared/providers/shared_providers.dart';
+import '../../budgets/providers/budget_providers.dart';
 import '../providers/exchange_rate_providers.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'currency_prefix_dropdown.dart';
@@ -467,6 +470,93 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
 
     final isExchangeInvalid = _selectedTab == TransactionTabType.exchange && _fromCurrency == _toCurrency;
     
+    // Effective category for matching (sub overrides parent).
+    // _selectedCategoryId is always the top-level parent.
+    final effectiveCategoryId = _selectedSubCategoryId ?? _selectedCategoryId;
+
+    // All IDs the current transaction "belongs to":
+    // the effective (leaf) category plus its parent (if a sub-category was picked).
+    final txCategoryIds = <String>{
+      if (effectiveCategoryId != null) effectiveCategoryId,
+      if (_selectedCategoryId != null) _selectedCategoryId!,
+    };
+
+    final allCategoriesForBudget = ref.watch(activeCategoryListProvider);
+
+    // Expand a list of budget category IDs so that any parent ID also covers
+    // all of its children (budget for "Food" should fire for "Restaurant").
+    Set<String> expandBudgetIds(List<String> ids) {
+      final expanded = <String>{...ids};
+      for (final id in ids) {
+        for (final child in allCategoriesForBudget) {
+          if (child.parentId == id) expanded.add(child.id);
+        }
+      }
+      return expanded;
+    }
+
+    // Returns true if a budget's scope covers the current expense category.
+    bool budgetCoversCategory(BudgetProgress prog) {
+      switch (prog.budget.scopeType) {
+        case 'all':
+          return true;
+        case 'include':
+          try {
+            final ids =
+                (jsonDecode(prog.budget.categoryIds!) as List).cast<String>();
+            final expanded = expandBudgetIds(ids);
+            return txCategoryIds.any(expanded.contains);
+          } catch (_) {
+            return false;
+          }
+        case 'exclude':
+          try {
+            final ids =
+                (jsonDecode(prog.budget.categoryIds!) as List).cast<String>();
+            final expanded = expandBudgetIds(ids);
+            // Require a category to be selected; no selection = no warning.
+            return txCategoryIds.isNotEmpty &&
+                txCategoryIds.every((id) => !expanded.contains(id));
+          } catch (_) {
+            return true;
+          }
+        default:
+          return false;
+      }
+    }
+
+    // Budget warnings: budgets already over threshold (90 % / 100 %)
+    final budgetWarnings = ref.watch(activeBudgetWarningsProvider);
+    final activeWarningsForCurrency = budgetWarnings.where((w) {
+      if (_selectedTab != TransactionTabType.expense) return false;
+      if (w.currency != _fromCurrency) return false;
+      return budgetCoversCategory(w);
+    }).toList();
+
+    // "Would exceed" warnings: this expense would push a budget over its limit
+    final wouldExceedWarnings = () {
+      if (_selectedTab != TransactionTabType.expense) return <BudgetProgress>[];
+      final newAmount = double.tryParse(_amountController.text) ?? 0.0;
+      if (newAmount <= 0) return <BudgetProgress>[];
+
+      final progressList =
+          ref.watch(budgetProgressListProvider).valueOrNull ?? [];
+
+      return progressList.where((prog) {
+        if (prog.isExpired) return false;
+        if (prog.budget.currency != _fromCurrency) return false;
+        if (prog.isOverBudget) return false;
+        if (!budgetCoversCategory(prog)) return false;
+
+        if (_selectedDate.isBefore(prog.currentPeriod.from) ||
+            _selectedDate.isAfter(prog.currentPeriod.to)) {
+          return false;
+        }
+
+        return prog.spentAmount + newAmount > prog.limitAmount;
+      }).toList();
+    }();
+    
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -508,6 +598,87 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
               Text(
                 '⚠️ This transaction exceeds your $_fromCurrency balance ($currentBalance).',
                 style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+              ),
+            ],
+            
+            if (activeWarningsForCurrency.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: activeWarningsForCurrency.map((w) {
+                    final budgetName = w.budget.name?.isNotEmpty == true
+                        ? w.budget.name!
+                        : (w.budget.scopeType == 'all'
+                            ? 'Global Budget'
+                            : 'Category Budget');
+                    return Text(
+                      '⚠️ "$budgetName" is ${w.isOverBudget ? "exceeded" : "near its limit"}!',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+
+            if (wouldExceedWarnings.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onTertiaryContainer,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Budget limit alert',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onTertiaryContainer,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    ...wouldExceedWarnings.map((prog) {
+                      final newAmount = double.tryParse(_amountController.text) ?? 0.0;
+                      final projectedSpent = prog.spentAmount + newAmount;
+                      final overage = projectedSpent - prog.limitAmount;
+                      final budgetName = prog.budget.name?.isNotEmpty == true
+                          ? prog.budget.name!
+                          : (prog.budget.scopeType == 'all'
+                              ? 'Global Budget'
+                              : 'Category Budget');
+                      return Text(
+                        '"$budgetName" (${prog.budget.currency}): ${prog.spentAmount.toStringAsFixed(2)} + ${newAmount.toStringAsFixed(2)} = ${projectedSpent.toStringAsFixed(2)} / ${prog.limitAmount.toStringAsFixed(2)}  (+${overage.toStringAsFixed(2)} over limit)',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onTertiaryContainer,
+                          fontSize: 12,
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
             ],
             

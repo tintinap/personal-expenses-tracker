@@ -35,11 +35,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _checkAuthStatus() async {
     try {
       final token = await _storage.read(key: 'jwt_access_token');
-      if (token != null && token.isNotEmpty) {
-        state = state.copyWith(isAuthenticated: true, isLoading: false);
-      } else {
-        state = state.copyWith(isAuthenticated: false, isLoading: false);
-      }
+      // Ignore placeholder mock tokens from development
+      final isValid = token != null &&
+          token.isNotEmpty &&
+          !token.startsWith('mock_');
+      state = state.copyWith(isAuthenticated: isValid, isLoading: false);
     } catch (e) {
       state = state.copyWith(isAuthenticated: false, isLoading: false, error: e.toString());
     }
@@ -48,13 +48,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // TODO: Actual Google Sign-In logic and backend API exchange
-      // Mock network delay & success
+      // TODO: Replace with actual Google Sign-In + backend token exchange
       await Future.delayed(const Duration(seconds: 1));
-      
-      await _storage.write(key: 'jwt_access_token', value: 'mock_jwt_token_from_google_auth');
-      
-      state = state.copyWith(isAuthenticated: true, isLoading: false);
+      state = state.copyWith(isLoading: false, error: 'Google Sign-In not yet configured');
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'Google sign-in failed');
     }
@@ -63,12 +59,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signInWithApple() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // TODO: Actual Apple Sign-In logic and backend API exchange
+      // TODO: Replace with actual Apple Sign-In + backend token exchange
       await Future.delayed(const Duration(seconds: 1));
-      
-      await _storage.write(key: 'jwt_access_token', value: 'mock_jwt_token_from_apple_auth');
-      
-      state = state.copyWith(isAuthenticated: true, isLoading: false);
+      state = state.copyWith(isLoading: false, error: 'Apple Sign-In not yet configured');
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'Apple sign-in failed');
     }
