@@ -10,6 +10,7 @@ import { SyncModule } from './sync/sync.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SheetsModule } from './sheets/sheets.module';
 import { ExportModule } from './export/export.module';
+import { ImportModule } from './import/import.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ExportModule } from './export/export.module';
     NotificationsModule,
     SheetsModule,
     ExportModule,
+    ImportModule,
   ],
 })
 export class AppModule {}

@@ -8,7 +8,7 @@
 PRODUCT_NAME = daily_spend
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.dailyspend.dailySpend
+PRODUCT_BUNDLE_IDENTIFIER = com.projectPET.dailySpend
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.dailyspend. All rights reserved.
