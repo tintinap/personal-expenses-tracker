@@ -268,6 +268,17 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
     super.dispose();
   }
 
+  /// Formats a [TimeOfDay] respecting the system 24h / AM-PM preference.
+  String _formatTime(BuildContext context, TimeOfDay time) {
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    if (use24h) {
+      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    }
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '${hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')} $period';
+  }
+
   /// Return only top-level (parent) categories for the first dropdown.
   List<DropdownMenuItem<String>> _buildParentDropdownItems(List<CategoryData> allCategories) {
     final parents = allCategories.where((c) => c.parentId == null).toList();
@@ -847,20 +858,53 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
                         lastDate: DateTime(2100),
                       );
                       if (date != null) {
-                        final now = DateTime.now();
                         setState(() {
+                          // Preserve the already-selected time when changing date
                           _selectedDate = DateTime(
                             date.year,
                             date.month,
                             date.day,
-                            now.hour,
-                            now.minute,
-                            now.second,
+                            _selectedDate.hour,
+                            _selectedDate.minute,
+                            _selectedDate.second,
                           );
                         });
                       }
                     },
                   ),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.access_time),
+                  label: Text(
+                    _formatTime(context, TimeOfDay.fromDateTime(_selectedDate)),
+                  ),
+                  onPressed: () async {
+                    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.fromDateTime(_selectedDate),
+                      initialEntryMode: TimePickerEntryMode.input,
+                      builder: (context, child) {
+                        return MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            alwaysUse24HourFormat: use24h,
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (time != null) {
+                      setState(() {
+                        _selectedDate = DateTime(
+                          _selectedDate.year,
+                          _selectedDate.month,
+                          _selectedDate.day,
+                          time.hour,
+                          time.minute,
+                        );
+                      });
+                    }
+                  },
                 ),
               ],
             ),

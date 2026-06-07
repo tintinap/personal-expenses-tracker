@@ -14,11 +14,7 @@ class WalletsScreen extends ConsumerWidget {
     final portfolioAsync = ref.watch(portfolioProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Wallets'),
-      ),
-      body: portfolioAsync.when(
+    return portfolioAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error loading portfolio: $err')),
         data: (portfolio) {
@@ -109,7 +105,6 @@ class WalletsScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
     );
   }
 }

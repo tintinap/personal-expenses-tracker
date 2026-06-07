@@ -8,11 +8,13 @@ import '../../features/wallets/screens/currency_detail_screen.dart';
 import '../../features/home/screens/dashboard_detail_screen.dart';
 import '../../features/budgets/screens/budgets_screen.dart';
 import '../../features/budgets/screens/budget_detail_screen.dart';
+import '../../features/budgets/widgets/budget_bottom_sheet.dart';
+import '../../features/reports/screens/reports_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/categories/screens/categories_screen.dart';
 import '../../features/transactions/widgets/transaction_bottom_sheet.dart';
 
-/// PRD §6 — go_router with ShellRoute for 5-tab bottom navigation
+/// PRD §6 — go_router with ShellRoute for 4-tab bottom navigation
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
@@ -55,25 +57,23 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(
-            path: '/settings',
+            path: '/reports',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: SettingsScreen(),
+              child: ReportsScreen(),
             ),
-            routes: [
-              GoRoute(
-                path: 'categories',
-                builder: (context, state) => const CategoriesScreen(),
-              ),
-            ],
           ),
         ],
       ),
       // Non-shell routes (full-screen)
       GoRoute(
-        path: '/expenses/:id',
-        builder: (context, state) => _PlaceholderScreen(
-          title: 'Expense ${state.pathParameters['id']}',
-        ),
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
+        routes: [
+          GoRoute(
+            path: 'categories',
+            builder: (context, state) => const CategoriesScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: '/wallets/:currency',
@@ -85,27 +85,72 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// PRD §6 — Bottom navigation bar with 5 tabs
+/// PRD §6 — Bottom navigation bar with 4 tabs + shared AppBar on root tabs.
+///
+/// Root tab screens (Home, Wallets, Budgets, Reports) return body-only widgets.
+/// Child route screens (DashboardDetail, BudgetDetail) keep their own Scaffold
+/// and AppBar — ScaffoldWithNavBar only provides bottom nav for those.
 class ScaffoldWithNavBar extends StatelessWidget {
   final Widget child;
 
   const ScaffoldWithNavBar({super.key, required this.child});
 
-  static int _calculateSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.path;
+  /// The set of paths that are considered "root tabs" — these get the shared
+  /// AppBar from ScaffoldWithNavBar. Everything else is a child route that
+  /// provides its own AppBar.
+  static const _rootTabPaths = {'/', '/wallets', '/budgets', '/reports'};
+
+  static String _resolveTitle(String location) {
+    if (location == '/' || location.startsWith('/dashboard-detail')) {
+      return 'DailySpend';
+    }
+    if (location.startsWith('/wallets')) return 'Wallets';
+    if (location.startsWith('/budgets')) return 'Budgets';
+    if (location.startsWith('/reports')) return 'Reports';
+    return 'DailySpend';
+  }
+
+  static int _calculateSelectedIndex(String location) {
     if (location == '/' || location.startsWith('/dashboard-detail')) return 0;
     if (location.startsWith('/wallets')) return 1;
     if (location.startsWith('/budgets')) return 2;
-    if (location.startsWith('/settings')) return 3;
+    if (location.startsWith('/reports')) return 3;
     return 0;
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedIndex = _calculateSelectedIndex(context);
-    final theme = Theme.of(context);
+    final location = GoRouterState.of(context).uri.path;
+    final selectedIndex = _calculateSelectedIndex(location);
+    final isRootTab = _rootTabPaths.contains(location);
 
     return Scaffold(
+      appBar: isRootTab
+          ? AppBar(
+              title: Text(_resolveTitle(location)),
+              actions: [
+                // Show "Add Budget" action when on the Budgets tab
+                if (location == '/budgets')
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    tooltip: 'Add Budget',
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        useSafeArea: true,
+                        builder: (context) => const BudgetBottomSheet(),
+                      );
+                    },
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  tooltip: 'Settings',
+                  onPressed: () => context.push('/settings'),
+                ),
+              ],
+            )
+          : null,
       body: child,
       floatingActionButton: FloatingActionButton(
         shape: const CircleBorder(),
@@ -144,11 +189,11 @@ class ScaffoldWithNavBar extends StatelessWidget {
               onTap: () => context.go('/budgets'),
             ),
             _NavBarItem(
-              icon: Icons.settings_outlined,
-              activeIcon: Icons.settings,
-              label: 'Settings',
+              icon: Icons.bar_chart_outlined,
+              activeIcon: Icons.bar_chart,
+              label: 'Reports',
               isSelected: selectedIndex == 3,
-              onTap: () => context.go('/settings'),
+              onTap: () => context.go('/reports'),
             ),
           ],
         ),
@@ -194,19 +239,6 @@ class _NavBarItem extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const _PlaceholderScreen({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('Under Construction: $title')),
     );
   }
 }

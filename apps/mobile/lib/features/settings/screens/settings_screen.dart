@@ -7,6 +7,8 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/widgets/sign_in_banner.dart';
 import '../../export/providers/export_provider.dart';
 import '../../shared/providers/shared_providers.dart';
+import 'package:file_picker/file_picker.dart';
+import '../../import/screens/import_preview_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -21,6 +23,16 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
+        ),
       ),
       body: ListView(
         children: [
@@ -96,6 +108,12 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('Choose date range and export .xlsx'),
             onTap: () => _showExportDateRangePicker(context, ref),
           ),
+          ListTile(
+            leading: const Icon(Icons.upload_file),
+            title: const Text('Import from Excel'),
+            subtitle: const Text('Import transactions from .xlsx file'),
+            onTap: () => _pickAndImportExcel(context),
+          ),
           const Divider(),
           _buildSectionHeader(context, 'About'),
           const ListTile(
@@ -164,7 +182,15 @@ class SettingsScreen extends ConsumerWidget {
 
     if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Exported to: ${result.filePath}')),
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text('Exported successfully'),
+            ],
+          ),
+        ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -321,6 +347,34 @@ class SettingsScreen extends ConsumerWidget {
         return Icons.light_mode;
       case ThemeMode.dark:
         return Icons.dark_mode;
+    }
+  }
+
+  Future<void> _pickAndImportExcel(BuildContext context) async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+      );
+
+      if (result == null || result.files.single.path == null) {
+        return;
+      }
+
+      if (!context.mounted) return;
+      
+      Navigator.push(
+        context,
+        ImportPreviewScreen.route(result.files.single.path!),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick file: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 }

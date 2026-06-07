@@ -24,19 +24,7 @@ class HomeScreen extends ConsumerWidget {
     final baseCurrency = ref.watch(baseCurrencyProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('DailySpend'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle),
-            onPressed: () {
-              context.go('/settings');
-            },
-          ),
-        ],
-      ),
-      body: SlidableAutoCloseBehavior(
+    return SlidableAutoCloseBehavior(
         child: RefreshIndicator(
         onRefresh: () async {
           // In a real app we might trigger a background sync here
@@ -230,7 +218,6 @@ class HomeScreen extends ConsumerWidget {
             ),
           ],
         ),
-      ),
       ),
     );
   }

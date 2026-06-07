@@ -100,9 +100,6 @@ class PeriodNotifier extends Notifier<PeriodState> {
 
   void next() {
     if (state.type == PeriodType.custom) return;
-    
-    // Don't navigate into the future
-    if (state.to.isAfter(DateTime.now())) return;
 
     DateTime ref;
     switch (state.type) {

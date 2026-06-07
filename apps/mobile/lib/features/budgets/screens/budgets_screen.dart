@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers/database_providers.dart';
 import '../providers/budget_providers.dart';
 import '../widgets/budget_card.dart';
-import '../widgets/budget_bottom_sheet.dart';
 
 class BudgetsScreen extends ConsumerWidget {
   const BudgetsScreen({super.key});
@@ -15,11 +14,7 @@ class BudgetsScreen extends ConsumerWidget {
     final progressListAsync = ref.watch(budgetProgressListProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Budgets'),
-      ),
-      body: progressListAsync.when(
+    return progressListAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (progressList) {
@@ -32,7 +27,7 @@ class BudgetsScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text('No active budgets', style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 8),
-                  Text('Tap the + button to create one', style: theme.textTheme.bodyMedium),
+                  Text('Tap the + button in the top bar to create one', style: theme.textTheme.bodyMedium),
                 ],
               ),
             );
@@ -80,18 +75,6 @@ class BudgetsScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            useSafeArea: true,
-            builder: (context) => const BudgetBottomSheet(),
-          );
-        },
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }
