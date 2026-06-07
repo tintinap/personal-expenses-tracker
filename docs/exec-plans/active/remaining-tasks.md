@@ -8,34 +8,34 @@ Implement all remaining features, fix bugs, and clean up tech debt identified fr
 
 ## Tasks
 
-### [ ] Phase 1: Nav Restructure + Cleanup (no dependencies)
-- [ ] **T1: Move Settings to AppBar gear icon**
-  - Update `ScaffoldWithNavBar` in `app_router.dart` — remove Settings tab from bottom nav
-  - Add gear icon (`Icons.settings_outlined`) to AppBar `actions` (shared across all shell tabs)
-  - Update `_calculateSelectedIndex` to remove settings index
-- [ ] **T2: Add Reports tab + screen**
-  - Create `features/reports/screens/reports_screen.dart`
-  - Add `/reports` route to `ShellRoute` in `app_router.dart` at tab index 3
-  - Add Reports `_NavBarItem` where Settings used to be
-  - Implement period selector (reuse `PeriodSelector` widget)
-  - Implement donut chart (spend by category) — extract from Home
-  - Implement bar chart (daily spend within period) using `fl_chart`
-  - Implement line chart (rolling spend trend) using `fl_chart`
-  - Implement period comparison card (this vs previous: absolute + %)
-  - Implement category list with spend amount and % of total
-- [ ] **T3: Remove orphan files**
-  - Delete `core/providers/database_provider.dart` (duplicate, zero imports)
-  - Delete `data/models/expense.dart` (legacy, zero imports)
-  - Delete `data/models/category.dart` (legacy, zero imports)
-  - Delete `data/database/database_service.dart` (legacy, zero imports)
-  - Delete `services/export_helper_stub.dart` (zero imports)
-  - Delete `services/export_helper_web.dart` (zero imports)
-  - Delete `services/export_helper_native.dart` (zero imports)
-  - Delete `features/budgets/utils/mock_data.dart` (zero imports)
-  - Remove empty `data/` and `services/` directories
-  - Remove `_PlaceholderScreen` class from `app_router.dart`
-- [ ] **T4: Remove unused OptionalAuthGuard** (backend)
-  - Either wire it to appropriate endpoints or remove the dead code from `guards/`
+### [x] Phase 1: Nav Restructure + Cleanup (no dependencies)
+- [x] **T1: Move Settings to AppBar gear icon**
+  - [x] Update `ScaffoldWithNavBar` in `app_router.dart` — remove Settings tab from bottom nav
+  - [x] Add gear icon (`Icons.settings_outlined`) to AppBar `actions` (shared across all shell tabs)
+  - [x] Update `_calculateSelectedIndex` to remove settings index
+- [x] **T2: Add Reports tab + screen**
+  - [x] Create `features/reports/screens/reports_screen.dart`
+  - [x] Add `/reports` route to `ShellRoute` in `app_router.dart` at tab index 3
+  - [x] Add Reports `_NavBarItem` where Settings used to be
+  - [x] Implement period selector (reuse `PeriodSelector` widget)
+  - [x] Implement donut chart (spend by category) — extract from Home
+  - [x] Implement bar chart (daily spend within period) using `fl_chart`
+  - [x] Implement line chart (rolling spend trend) using `fl_chart`
+  - [x] Implement period comparison card (this vs previous: absolute + %)
+  - [x] Implement category list with spend amount and % of total
+- [x] **T3: Remove orphan files**
+  - [x] Delete `core/providers/database_provider.dart` (duplicate, zero imports)
+  - [x] Delete `data/models/expense.dart` (legacy, zero imports)
+  - [x] Delete `data/models/category.dart` (legacy, zero imports)
+  - [x] Delete `data/database/database_service.dart` (legacy, zero imports)
+  - [x] Delete `services/export_helper_stub.dart` (zero imports)
+  - [x] Delete `services/export_helper_web.dart` (zero imports)
+  - [x] Delete `services/export_helper_native.dart` (zero imports)
+  - [ ] ~~Delete `features/budgets/utils/mock_data.dart`~~ (kept per user request)
+  - [x] Remove empty `data/` and `services/` directories
+  - [x] Remove `_PlaceholderScreen` class from `app_router.dart`
+- [x] **T4: Remove unused OptionalAuthGuard** (backend)
+  - [x] Either wire it to appropriate endpoints or remove the dead code from `guards/`
 
 ### [ ] Phase 2: Core Bug Fixes (unblocks auth & sync)
 - [ ] **T5: Fix secure storage key mismatch**
@@ -115,3 +115,10 @@ Implement all remaining features, fix bugs, and clean up tech debt identified fr
   - Build recurrence evaluation logic (check on app launch / period change)
   - Auto-insert copies at the start of each new cycle
   - UI to mark expense as recurring and to pause/delete recurrence
+
+### [ ] Phase 6: Future Work
+- [ ] **T23: Web Client Excel Import (Next.js)**
+  - Implement client-side parsing using SheetJS/xlsx in `apps/web/src/lib/import-parser.ts`
+  - Build preview modal UI (`ImportModal.tsx`) showing validation checks and row toggle checkboxes
+  - Wire Settings page import button and call `POST /import/transactions` API client
+

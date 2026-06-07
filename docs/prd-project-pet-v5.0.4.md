@@ -1,9 +1,9 @@
 # Product Requirements Document
 ## Project PET — Personal Expense Tracker (Monorepo)
 
-**Version:** 3.1
-**Last updated:** April 2026
-**Status:** Ready for codegen
+**Version:** 5.0.4
+**Last updated:** 7 June 2026
+**Status:** Active
 
 ---
 
@@ -33,6 +33,7 @@
 22. [User stories & acceptance criteria](#22-user-stories--acceptance-criteria)
 23. [Non-functional requirements](#23-non-functional-requirements)
 24. [Out of scope (v1)](#24-out-of-scope-v1)
+25. [Excel Import](#25-excel-import)
 
 ---
 
@@ -286,7 +287,7 @@ Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four secti
 
 #### Add/Edit Expense (bottom sheet on mobile, modal on web)
 - Auto-focuses amount field on open
-- Fields: Amount, Currency (picker, defaults to last used), Date (defaults to today), Category (picker), Note (optional, max 200 chars)
+- Fields: Amount, Currency (picker, defaults to last used), Date (defaults to today), Time (defaults to current time, follows system 12h/24h format), Category (picker), Note (optional, max 200 chars)
 - "Save" button — disabled until Amount and Category are filled
 - Shows converted base currency equivalent below amount field in real time
 
@@ -498,7 +499,8 @@ No blocking gate — the export buttons are immediately below the banner.
 |---|---|---|---|---|
 | Amount | Decimal input | Yes | Empty | Auto-focused on sheet open |
 | Currency | Picker | Yes | Last used (or base currency) | Shows ISO code + flag |
-| Date | Date picker | Yes | Today | Can be backdated |
+| Date | Date picker | Yes | Today | Can be backdated or set to a future date |
+| Time | Time picker (input mode) | Yes | Current time | Follows system 12h (AM/PM) or 24h format; opens in text-input mode by default |
 | Category | Picker | Yes | Last used | From active categories |
 | Note | Text field | No | Empty | Max 200 chars |
 
@@ -665,7 +667,6 @@ Any of these currencies can be set as the base currency. The remaining currencie
 - [ ] Base currency change shows a progress indicator during re-conversion
 
 ---
----
 
 ## 11. Currency income & exchange events
 
@@ -700,7 +701,8 @@ User received foreign currency cash. Example: just landed in Bangkok, withdrew 2
 |---|---|---|---|
 | Amount | Decimal | Yes | Amount received in foreign currency |
 | Currency | Picker | Yes | The currency received (e.g. THB) |
-| Date | Date picker | Yes | Defaults to today |
+| Date | Date picker | Yes | Defaults to today; future dates allowed |
+| Time | Time picker (input mode) | Yes | Defaults to current time; follows system 12h/24h format |
 | Source | Text | No | e.g. "ATM withdrawal", "Gift from friend" |
 | Note | Text | No | Max 200 chars |
 
@@ -739,7 +741,8 @@ Example: exchange 15,000 THB → AUD and receive A$620 at the counter.
 | From currency | Picker | Yes | Source currency (e.g. THB) |
 | To amount | Decimal | Yes | Amount received (e.g. 620) |
 | To currency | Picker | Yes | Target currency (e.g. AUD) |
-| Date | Date picker | Yes | Defaults to today |
+| Date | Date picker | Yes | Defaults to today; future dates allowed |
+| Time | Time picker (input mode) | Yes | Defaults to current time; follows system 12h/24h format |
 | Exchange rate | Calculated / editable | Yes | Auto-filled as `to_amount ÷ from_amount`; always visible |
 | Rate source | Toggle | Yes | "Custom (what I got)" or "Use Frankfurter rate" |
 | Note | Text | No | e.g. "Superrich exchange booth" |
@@ -941,6 +944,32 @@ Currency income and exchange events mirror to **dedicated tabs** (handled by Nes
 
 Each budget tracks spending in **one user-chosen currency**. Only transactions with `original_currency` matching the budget's currency are counted toward the budget spend total. This allows users to set separate budgets per currency (e.g. a THB budget for daily spending while travelling, an AUD budget for home expenses).
 
+### <span style="background-color: #c6efce">Default budget seeding (v5.0.4)</span>
+
+<span style="background-color: #c6efce">On first install (database `onCreate`) or on upgrade to schema version 8, the system automatically creates three default budgets:</span>
+
+<span style="background-color: #c6efce">
+
+| Budget | `period_type` | `scope_type` | `is_recurring` | `amount_base` | Time frame |
+|---|---|---|---|---|---|
+| Monthly Budget | `monthly` | `all` | `true` | `0.00` | Jan 1 – Dec 31 of the current year |
+| Weekly Budget | `weekly` | `all` | `true` | `0.00` | Jan 1 – Dec 31 of the current year |
+| Fortnightly Budget | `fortnightly` | `all` | `true` | `0.00` | Jan 1 – Dec 31 of the current year |
+
+</span>
+
+<span style="background-color: #c6efce">**Seeding rules:**</span>
+<span style="background-color: #c6efce">
+
+- IDs are deterministic: `default-budget-monthly`, `default-budget-weekly`, `default-budget-fortnightly`
+- Uses `InsertMode.insertOrIgnore` — if a budget with the same ID already exists, it is not overwritten
+- Currency is set to the user's configured `base_currency` setting (falls back to `AUD` if not yet configured)
+- `start_date` = January 1st of the current year; `end_date` = December 31st of the current year
+- All budgets are created with a limit of `0.00` — the user is expected to set their own limits
+- Seeded budgets appear immediately in the Budgets screen after first launch or upgrade
+
+</span>
+
 ### Period types & recurring toggle
 
 **Recurring budgets (`is_recurring = true`):**
@@ -1053,6 +1082,9 @@ When adding an expense in the **Transaction Bottom Sheet**:
 - [ ] Backend: FCM push notifications sent after sync as supplementary alert
 - [ ] Budget Detail Screen shows inline period history section for recurring budgets
 - [ ] Period history displays all past periods with spend/limit/percentage
+- [ ] <span style="background-color: #c6efce">Three default budgets (Monthly, Weekly, Fortnightly) are seeded on first install with `amount_base = 0.00`</span>
+- [ ] <span style="background-color: #c6efce">Default budgets are seeded on database upgrade to schema v8 for existing users</span>
+- [ ] <span style="background-color: #c6efce">Default budget seeding uses `insertOrIgnore` to avoid overwriting user-modified budgets</span>
 
 ---
 
@@ -1407,6 +1439,12 @@ The exported `.xlsx` file mirrors the same multi-sheet structure as Google Sheet
 
 All summary sheets use Excel formulas (`SUMIFS`, `COUNTIFS`) referencing `All Transactions`, so the exported file is a working spreadsheet — not just flat data.
 
+#### Export Format Behavior (Empty Dates & Periods)
+
+To ensure high data fidelity for analysis and re-importing:
+1. **Empty Date Rows (`no_transaction`)**: Gaps within the export date range (days with zero transactions) are populated on the `All Transactions` raw sheet as empty rows with Type = `no_transaction`, Date = missing date, Amount = 0, and other fields empty. This facilitates parsing and ensures the date range is continuous.
+2. **Zero-Transaction Periods**: All summary sheets (Daily, Weekly, Fortnightly, Monthly, Yearly) generate a row for *every* period in the date range, regardless of whether transactions occurred. Periods with no transactions show `0` for all sum amounts, `0` for counts, and `0` for category breakdowns.
+
 ### File naming
 
 | Format | Filename |
@@ -1594,10 +1632,10 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `category_id` | UUID | Nullable; FK → categories (expenses only) |
 | `note` | TEXT | Nullable, max 200 chars |
 | `source_label` | TEXT | Nullable; for currency income (e.g. "ATM withdrawal") |
-
 | `transaction_date` | DATE | Date of the transaction |
 | `is_recurring` | BOOLEAN | Default false (expenses only) |
 | `recurrence_type` | VARCHAR(12) | weekly / fortnightly / monthly / null |
+| `is_aggregate` | BOOLEAN | Default false; when true, represents a period-level aggregate |
 | `sync_status` | VARCHAR(10) | pending / synced / conflict (mobile Drift only; not in Prisma) |
 | `deleted_at` | TIMESTAMP | Nullable; soft delete |
 | `created_at` | TIMESTAMP | |
@@ -1650,11 +1688,11 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `scope_type` | VARCHAR(10) | `all` / `include` / `exclude` |
 | `category_ids` | TEXT | Nullable; JSON array of category UUIDs (null when scope_type = 'all') |
 | `currency` | VARCHAR(3) | Budget currency (matches transactions' `original_currency`) |
-| `amount_base` | DECIMAL(12,2) | Budget limit in the budget's currency |
+| `amount_base` | DECIMAL(12,2) | <span style="background-color: #ffffcc">Budget limit in the budget's currency; default budgets seeded with `0.00`</span> |
 | `period_type` | VARCHAR(12) | weekly / fortnightly / monthly / custom |
 | `is_recurring` | BOOLEAN | Default true; false = one-shot budget |
-| `start_date` | DATE | Anchor date for repeating periods; start for custom |
-| `end_date` | DATE | Nullable; only for non-recurring/custom ranges |
+| `start_date` | DATE | <span style="background-color: #ffffcc">Anchor date for repeating periods; start for custom; default budgets use Jan 1 of current year</span> |
+| `end_date` | DATE | <span style="background-color: #ffffcc">Nullable; only for non-recurring/custom ranges; default budgets use Dec 31 of current year</span> |
 | `is_active` | BOOLEAN | False after non-recurring budget expires |
 | `notified_75` | BOOLEAN | Reset each new cycle |
 | `notified_90` | BOOLEAN | Reset each new cycle |
@@ -1662,6 +1700,8 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `sync_status` | VARCHAR(10) | pending / synced (mobile Drift only) |
 | `created_at` | TIMESTAMP | |
 | `updated_at` | TIMESTAMP | |
+
+<span style="background-color: #c6efce">**Default seeded budget IDs:** `default-budget-monthly`, `default-budget-weekly`, `default-budget-fortnightly` — inserted via `insertOrIgnore` at schema v8.</span>
 
 #### Budget scope & currency semantics
 
@@ -1705,7 +1745,7 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `id` | UUID | PK |
 | `user_id` | UUID | FK → users |
 | `record_type` | VARCHAR(20) | transaction / budget / category |
-| `record_id` | UUID | The conflicting record UUID |
+| `record_id` | The conflicting record UUID |
 | `winning_version` | JSON | The version that was kept |
 | `losing_version` | JSON | The version that was discarded |
 | `resolved_at` | TIMESTAMP | |
@@ -1882,4 +1922,50 @@ Define the following providers in the Flutter mobile app. All async providers us
 
 ---
 
-*End of document — Project PET v3.0 (adapted for DailySpend monorepo)*
+## 25. Excel Import
+
+### Availability
+Available to **all users**. Users can upload or pick a spreadsheet file to import records directly into their transactions database:
+- **Mobile (Flutter)**: Local client-side parsing using `excel` package, validations, duplicate matching, and transaction inserts directly to the Drift SQLite DB. Records get `sync_status = pending` and sync asynchronously via the standard `sync_queue`. Works offline.
+- **Web (Next.js)**: Client-side parsing using SheetJS/`xlsx` package in browser, previewed in UI modal, and committed to database by submitting parsed JSON list to NestJS backend `POST /import/transactions` endpoint. Works online only.
+
+### Trigger
+Available in **Settings → Import from Excel**. Users pick a `.xlsx` file, triggering the parsing and validation preview flow.
+
+### Supported Sheets & Column Mapping
+Imports data from three raw sheets if found (sheets not present are skipped):
+1. **`All Transactions`**: Date, Type, Description, Category, Original Amount, Original Currency, Base Amount, Exchange Rate, Rate Source, UUID, Period (optional). Rows with Type = `no_transaction` are skipped. Category matches existing categories (case-insensitive, fuzzy fallback).
+   - *Duplicate Skip Logic*: To prevent double-importing of exchange and income events, if the specialized sheets `Currency Exchanges` or `Currency Income` are present in the Excel file, the importer will deliberately skip processing the corresponding `currency_exchange_out`, `currency_exchange_in`, and `currency_income` rows from the `All Transactions` sheet, delegating them entirely to the specialized sheets.
+2. **`Currency Income`**: Date, Currency, Amount, Source, Base Currency Equivalent, UUID.
+3. **`Currency Exchanges`**: Date, From Currency, From Amount, To Currency, To Amount, Rate, Rate Source, Note, UUID. Creates two linked exchange out/in records.
+
+### Aggregate / Missing-Date Support
+Supports importing period-level summary items (e.g. "this week my total food spend was 300 AUD") instead of single transactions:
+- **Trigger**: Detected if the sheet has a `Period` column (value = `week`, `fortnight`, `month`, `year`) or a prefix in the Description field (e.g. `[WEEK]`, `[MONTH]`).
+- **Behavior**: Sets `is_aggregate = true` on the database record, and adjusts the transaction date to the start of the period containing that date (Monday for a week, 1st for a month, Jan 1st for a year, fortnight index start for a fortnight). Aggregate records sum up in dashboard charts and budgets, but are excluded from transaction count metrics.
+
+### Duplicate Detection
+Ensures database integrity during import:
+- **UUID Match**: If row UUID matches an existing record in the database, it's flagged as an **Update (🔄)** and will overwrite the existing entry. Checked by default in preview.
+- **Probable Duplicate (Soft-Deduplicate)**: If row `Date + Amount + Category` (or Currency) matches an existing record in the database, it's flagged as a **Probable Duplicate (⚠️)**.
+  - **One-to-One Consumption**: Database records are grouped into list buckets by duplicate key. Matching consumes one record from the database list bucket. If multiple identical records are present in the import sheet, only the first $N$ matching instances are flagged as duplicates (where $N$ is the number of matching records in the database). Subsequent identical rows in the import are considered new transactions and marked **Ready**.
+  - **Deduplicated States**: Duplicate rows are unchecked by default. If manually checked for import, their IDs are cleared (`id = null`) to ensure they insert as new transactions with fresh UUIDs rather than overwriting existing records.
+- **Error**: Any row failing basic validation (invalid type, invalid date, missing category for expense, negative amount) is flagged as an **Error (❌)**. All validation errors block the import until corrected.
+
+### Interactive Missing Category Mapping
+When the Excel import file contains categories not found in the user's database:
+- **Deferred Creation**: The system reads the missing categories into memory during the preview stage without committing them to the database, ensuring database cleanliness if the preview is closed.
+- **Mapping UI**: The preview screen displays a "Map New Categories" section listing all newly discovered categories.
+- **Hierarchical Overrides**: For each pending category, the user can use a dropdown to select either:
+  - Setting it as a new **Top-Level Category** (no parent).
+  - Mapping it as a subcategory of any **Existing Top-Level Category** in the database.
+  - Nesting it under another **Newly Pending Top-Level Category** from the file.
+  - *Note:* Subcategories cannot be selected as parents, enforcing the 1-level depth rule.
+- **Visual Customization**:
+  - New **Top-Level Categories**: User can select a custom color and an icon via inline pickers. If unselected, defaults are automatically assigned.
+  - New **Subcategories**: Color is automatically inherited from the selected parent category. User can only select a custom icon.
+- **Committing**: Upon user confirmation ("Import"), parent/child relations are resolved and the categories are inserted into the database right before transactions are processed.
+
+---
+
+*End of document — Project PET v5.0.4 (adapted for DailySpend monorepo)*

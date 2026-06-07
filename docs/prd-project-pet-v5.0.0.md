@@ -1,9 +1,9 @@
 # Product Requirements Document
 ## Project PET — Personal Expense Tracker (Monorepo)
 
-**Version:** 3.1
-**Last updated:** April 2026
-**Status:** Ready for codegen
+**Version:** 5.0.0
+**Last updated:** June 2026
+**Status:** Active
 
 ---
 
@@ -33,6 +33,7 @@
 22. [User stories & acceptance criteria](#22-user-stories--acceptance-criteria)
 23. [Non-functional requirements](#23-non-functional-requirements)
 24. [Out of scope (v1)](#24-out-of-scope-v1)
+25. [Excel Import](#25-excel-import)
 
 ---
 
@@ -664,7 +665,6 @@ Any of these currencies can be set as the base currency. The remaining currencie
 - [ ] Changing base currency re-converts all `amount_base` values using latest rates
 - [ ] Base currency change shows a progress indicator during re-conversion
 
----
 ---
 
 ## 11. Currency income & exchange events
@@ -1407,6 +1407,12 @@ The exported `.xlsx` file mirrors the same multi-sheet structure as Google Sheet
 
 All summary sheets use Excel formulas (`SUMIFS`, `COUNTIFS`) referencing `All Transactions`, so the exported file is a working spreadsheet — not just flat data.
 
+#### Export Format Behavior (Empty Dates & Periods)
+
+To ensure high data fidelity for analysis and re-importing:
+1. **Empty Date Rows (`no_transaction`)**: Gaps within the export date range (days with zero transactions) are populated on the `All Transactions` raw sheet as empty rows with Type = `no_transaction`, Date = missing date, Amount = 0, and other fields empty. This facilitates parsing and ensures the date range is continuous.
+2. **Zero-Transaction Periods**: All summary sheets (Daily, Weekly, Fortnightly, Monthly, Yearly) generate a row for *every* period in the date range, regardless of whether transactions occurred. Periods with no transactions show `0` for all sum amounts, `0` for counts, and `0` for category breakdowns.
+
 ### File naming
 
 | Format | Filename |
@@ -1594,10 +1600,10 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `category_id` | UUID | Nullable; FK → categories (expenses only) |
 | `note` | TEXT | Nullable, max 200 chars |
 | `source_label` | TEXT | Nullable; for currency income (e.g. "ATM withdrawal") |
-
 | `transaction_date` | DATE | Date of the transaction |
 | `is_recurring` | BOOLEAN | Default false (expenses only) |
 | `recurrence_type` | VARCHAR(12) | weekly / fortnightly / monthly / null |
+| `is_aggregate` | BOOLEAN | Default false; when true, represents a period-level aggregate |
 | `sync_status` | VARCHAR(10) | pending / synced / conflict (mobile Drift only; not in Prisma) |
 | `deleted_at` | TIMESTAMP | Nullable; soft delete |
 | `created_at` | TIMESTAMP | |
@@ -1705,7 +1711,7 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `id` | UUID | PK |
 | `user_id` | UUID | FK → users |
 | `record_type` | VARCHAR(20) | transaction / budget / category |
-| `record_id` | UUID | The conflicting record UUID |
+| `record_id` | The conflicting record UUID |
 | `winning_version` | JSON | The version that was kept |
 | `losing_version` | JSON | The version that was discarded |
 | `resolved_at` | TIMESTAMP | |
@@ -1882,4 +1888,44 @@ Define the following providers in the Flutter mobile app. All async providers us
 
 ---
 
-*End of document — Project PET v3.0 (adapted for DailySpend monorepo)*
+## 25. Excel Import
+
+### Availability
+Available to **all users**. Users can upload or pick a spreadsheet file to import records directly into their transactions database:
+- **Mobile (Flutter)**: Local client-side parsing using `excel` package, validations, duplicate matching, and transaction inserts directly to the Drift SQLite DB. Records get `sync_status = pending` and sync asynchronously via the standard `sync_queue`. Works offline.
+- **Web (Next.js)**: Client-side parsing using SheetJS/`xlsx` package in browser, previewed in UI modal, and committed to database by submitting parsed JSON list to NestJS backend `POST /import/transactions` endpoint. Works online only.
+
+### Trigger
+Available in **Settings → Import from Excel**. Users pick a `.xlsx` file, triggering the parsing and validation preview flow.
+
+### Supported Sheets & Column Mapping
+Imports data from three raw sheets if found (sheets not present are skipped):
+1. **`All Transactions`**: Date, Type, Description, Category, Original Amount, Original Currency, Base Amount, Exchange Rate, Rate Source, UUID, Period (optional). Rows with Type = `no_transaction` are skipped. Category matches existing categories (case-insensitive, fuzzy fallback).
+   - *Duplicate Skip Logic*: To prevent double-importing of exchange and income events, if the specialized sheets `Currency Exchanges` or `Currency Income` are present in the Excel file, the importer will deliberately skip processing the corresponding `currency_exchange_out`, `currency_exchange_in`, and `currency_income` rows from the `All Transactions` sheet, delegating them entirely to the specialized sheets.
+2. **`Currency Income`**: Date, Currency, Amount, Source, Base Currency Equivalent, UUID.
+3. **`Currency Exchanges`**: Date, From Currency, From Amount, To Currency, To Amount, Rate, Rate Source, Note, UUID. Creates two linked exchange out/in records.
+
+### Aggregate / Missing-Date Support
+Supports importing period-level summary items (e.g. "this week my total food spend was 300 AUD") instead of single transactions:
+- **Trigger**: Detected if the sheet has a `Period` column (value = `week`, `fortnight`, `month`, `year`) or a prefix in the Description field (e.g. `[WEEK]`, `[MONTH]`).
+- **Behavior**: Sets `is_aggregate = true` on the database record, and adjusts the transaction date to the start of the period containing that date (Monday for a week, 1st for a month, Jan 1st for a year, fortnight index start for a fortnight). Aggregate records sum up in dashboard charts and budgets, but are excluded from transaction count metrics.
+
+### Duplicate Detection
+Ensures database integrity during import:
+- **UUID Match**: If row UUID matches an existing record in the database, it's flagged as an **Update (🔄)** and will overwrite the existing entry. Checked by default in preview.
+- **Probable Duplicate**: If row `Date + Amount + Category` (or Currency) matches an existing record, it's flagged as a **Probable Duplicate (⚠️)**. Unchecked by default.
+- **Error**: Any row failing basic validation (invalid type, invalid date, missing category for expense, negative amount) is flagged as an **Error (❌)**. All validation errors block the import until corrected.
+
+### Interactive Missing Category Mapping
+When the Excel import file contains categories not found in the user's database:
+- **Deferred Creation**: The system reads the missing categories into memory during the preview stage without committing them to the database, ensuring database cleanliness if the preview is closed.
+- **Mapping UI**: The preview screen displays a "Map New Categories" section listing all newly discovered categories.
+- **Hierarchical Overrides**: For each pending category, the user can use a dropdown to select either:
+  - Setting it as a new **Top-Level Category** (no parent).
+  - Mapping it as a subcategory of any **Existing Category** in the database.
+  - Nesting it under another **Newly Pending Category** from the file.
+- **Committing**: Upon user confirmation ("Import"), parent/child relations are resolved and the categories are inserted into the database right before transactions are processed.
+
+---
+
+*End of document — Project PET v5.0.0 (adapted for DailySpend monorepo)*
