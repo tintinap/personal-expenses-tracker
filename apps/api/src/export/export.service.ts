@@ -39,12 +39,12 @@ export class ExportService {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Project PET';
 
-    this.buildAllTransactionsSheet(workbook, transactions);
+    const range = this.resolveRange(transactions, startDate, endDate);
+    const categories = this.extractExpenseCategories(transactions);
+
+    this.buildAllTransactionsSheet(workbook, transactions, range);
     this.buildCurrencyIncomeSheet(workbook, transactions);
     this.buildCurrencyExchangesSheet(workbook, transactions);
-
-    const categories = this.extractExpenseCategories(transactions);
-    const range = this.resolveRange(transactions, startDate, endDate);
 
     if (range) {
       this.buildPeriodSheet(workbook, 'Daily', range, categories, 'daily');
@@ -76,7 +76,7 @@ export class ExportService {
     this.autoFitAllSheets(workbook);
 
     const buffer = await workbook.xlsx.writeBuffer();
-    return buffer as Buffer;
+    return buffer as unknown as Buffer;
   }
 
   /* ── Auto-fit column widths ───────────────────────────────── */
@@ -126,6 +126,7 @@ export class ExportService {
   private buildAllTransactionsSheet(
     wb: ExcelJS.Workbook,
     txs: TransactionWithCategory[],
+    range: { start: Date; end: Date } | null,
   ) {
     const ws = wb.addWorksheet('All Transactions');
     ws.columns = [
@@ -142,19 +143,73 @@ export class ExportService {
     ];
     this.styleHeaderRow(ws);
 
+    if (!range) {
+      // No date range, just output the transactions
+      for (const tx of txs) {
+        ws.addRow({
+          date: this.fmtDateTime(tx.transactionDate),
+          type: tx.transactionType,
+          description: tx.note ?? '',
+          category: tx.category?.name ?? '',
+          originalAmount: Number(tx.originalAmount),
+          originalCurrency: tx.originalCurrency,
+          baseAmount: Number(tx.amountBase),
+          exchangeRate: Number(tx.exchangeRate),
+          rateSource: tx.rateSource,
+          uuid: tx.id,
+        });
+      }
+      return;
+    }
+
+    // Group transactions by date
+    const txByDate = new Map<string, TransactionWithCategory[]>();
     for (const tx of txs) {
-      ws.addRow({
-        date: this.fmtDate(tx.transactionDate),
-        type: tx.transactionType,
-        description: tx.note ?? '',
-        category: tx.category?.name ?? '',
-        originalAmount: Number(tx.originalAmount),
-        originalCurrency: tx.originalCurrency,
-        baseAmount: Number(tx.amountBase),
-        exchangeRate: Number(tx.exchangeRate),
-        rateSource: tx.rateSource,
-        uuid: tx.id,
-      });
+      const key = this.fmtDate(tx.transactionDate);
+      const list = txByDate.get(key) ?? [];
+      list.push(tx);
+      txByDate.set(key, list);
+    }
+
+    // Iterate every day in the range
+    const current = new Date(range.start);
+    const end = range.end;
+    while (current <= end) {
+      const key = this.fmtDate(current);
+      const dayTxs = txByDate.get(key);
+
+      if (dayTxs && dayTxs.length > 0) {
+        for (const tx of dayTxs) {
+          ws.addRow({
+            date: this.fmtDateTime(tx.transactionDate),
+            type: tx.transactionType,
+            description: tx.note ?? '',
+            category: tx.category?.name ?? '',
+            originalAmount: Number(tx.originalAmount),
+            originalCurrency: tx.originalCurrency,
+            baseAmount: Number(tx.amountBase),
+            exchangeRate: Number(tx.exchangeRate),
+            rateSource: tx.rateSource,
+            uuid: tx.id,
+          });
+        }
+      } else {
+        // Empty date — insert a no_transaction row
+        ws.addRow({
+          date: key,
+          type: 'no_transaction',
+          description: '',
+          category: '',
+          originalAmount: 0,
+          originalCurrency: '',
+          baseAmount: 0,
+          exchangeRate: 0,
+          rateSource: '',
+          uuid: '',
+        });
+      }
+
+      current.setUTCDate(current.getUTCDate() + 1);
     }
   }
 
@@ -178,7 +233,7 @@ export class ExportService {
     for (const tx of txs) {
       if (tx.transactionType !== 'currency_income') continue;
       ws.addRow({
-        date: this.fmtDate(tx.transactionDate),
+        date: this.fmtDateTime(tx.transactionDate),
         currency: tx.originalCurrency,
         amount: Number(tx.originalAmount),
         source: tx.sourceLabel ?? tx.note ?? '',
@@ -230,7 +285,7 @@ export class ExportService {
     for (const [eventId, pair] of pairs) {
       const ref = pair.out ?? pair.in!;
       ws.addRow({
-        date: this.fmtDate(ref.transactionDate),
+        date: this.fmtDateTime(ref.transactionDate),
         fromCurrency: pair.out?.originalCurrency ?? '',
         fromAmount: pair.out ? Number(pair.out.originalAmount) : '',
         toCurrency: pair.in?.originalCurrency ?? '',
@@ -470,6 +525,10 @@ export class ExportService {
 
   private fmtDate(d: Date): string {
     return d.toISOString().slice(0, 10);
+  }
+
+  private fmtDateTime(d: Date): string {
+    return d.toISOString().slice(0, 19).replace('T', ' ');
   }
 
   /** Escape double-quotes inside a string used in an Excel formula literal. */
