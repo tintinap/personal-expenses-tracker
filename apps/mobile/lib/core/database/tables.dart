@@ -31,6 +31,8 @@ class Transactions extends Table {
       dateTime().named('created_at').withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt =>
       dateTime().named('updated_at').withDefault(currentDateAndTime)();
+  BoolColumn get isAggregate =>
+      boolean().named('is_aggregate').withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};

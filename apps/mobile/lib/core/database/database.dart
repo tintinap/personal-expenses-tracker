@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -52,6 +52,8 @@ class AppDatabase extends _$AppDatabase {
         await _seedDefaultCategories();
         // Seed default settings
         await _seedDefaultSettings();
+        // Seed default budgets
+        await _seedDefaultBudgets();
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 2) {
@@ -87,6 +89,12 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 6) {
           await m.addColumn(budgets, budgets.name);
+        }
+        if (from < 7) {
+          await m.addColumn(transactions, transactions.isAggregate);
+        }
+        if (from < 8) {
+          await _seedDefaultBudgets();
         }
       },
     );
@@ -169,6 +177,36 @@ class AppDatabase extends _$AppDatabase {
         key: entry.key,
         value: entry.value,
       ));
+    }
+  }
+
+  Future<void> _seedDefaultBudgets() async {
+    final now = DateTime.now();
+    final startOfYear = DateTime(now.year, 1, 1);
+    final endOfYear = DateTime(now.year, 12, 31, 23, 59, 59);
+    final baseCurrency = await getSetting('base_currency') ?? 'AUD';
+
+    final defaultBudgets = [
+      (id: 'default-budget-monthly', name: 'Monthly Budget', periodType: 'monthly'),
+      (id: 'default-budget-weekly', name: 'Weekly Budget', periodType: 'weekly'),
+      (id: 'default-budget-fortnightly', name: 'Fortnightly Budget', periodType: 'fortnightly'),
+    ];
+
+    for (final budget in defaultBudgets) {
+      await into(budgets).insert(
+        BudgetsCompanion.insert(
+          id: budget.id,
+          name: Value(budget.name),
+          scopeType: 'all',
+          currency: baseCurrency,
+          amountBase: 0.0,
+          periodType: budget.periodType,
+          isRecurring: const Value(true),
+          startDate: startOfYear,
+          endDate: Value(endOfYear),
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
     }
   }
 

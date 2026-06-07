@@ -145,6 +145,16 @@ class $TransactionsTable extends Transactions
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _isAggregateMeta =
+      const VerificationMeta('isAggregate');
+  @override
+  late final GeneratedColumn<bool> isAggregate = GeneratedColumn<bool>(
+      'is_aggregate', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_aggregate" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -166,7 +176,8 @@ class $TransactionsTable extends Transactions
         syncStatus,
         deletedAt,
         createdAt,
-        updatedAt
+        updatedAt,
+        isAggregate
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -301,6 +312,12 @@ class $TransactionsTable extends Transactions
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('is_aggregate')) {
+      context.handle(
+          _isAggregateMeta,
+          isAggregate.isAcceptableOrUnknown(
+              data['is_aggregate']!, _isAggregateMeta));
+    }
     return context;
   }
 
@@ -350,6 +367,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      isAggregate: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_aggregate'])!,
     );
   }
 
@@ -380,6 +399,7 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
   final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isAggregate;
   const TransactionData(
       {required this.id,
       required this.transactionType,
@@ -400,7 +420,8 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
       required this.syncStatus,
       this.deletedAt,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.isAggregate});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -436,6 +457,7 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_aggregate'] = Variable<bool>(isAggregate);
     return map;
   }
 
@@ -471,6 +493,7 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
           : Value(deletedAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      isAggregate: Value(isAggregate),
     );
   }
 
@@ -498,6 +521,7 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isAggregate: serializer.fromJson<bool>(json['isAggregate']),
     );
   }
   @override
@@ -524,6 +548,7 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isAggregate': serializer.toJson<bool>(isAggregate),
     };
   }
 
@@ -547,7 +572,8 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
           String? syncStatus,
           Value<DateTime?> deletedAt = const Value.absent(),
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          DateTime? updatedAt,
+          bool? isAggregate}) =>
       TransactionData(
         id: id ?? this.id,
         transactionType: transactionType ?? this.transactionType,
@@ -572,6 +598,7 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
         deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        isAggregate: isAggregate ?? this.isAggregate,
       );
   TransactionData copyWithCompanion(TransactionsCompanion data) {
     return TransactionData(
@@ -617,6 +644,8 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isAggregate:
+          data.isAggregate.present ? data.isAggregate.value : this.isAggregate,
     );
   }
 
@@ -642,33 +671,36 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
           ..write('syncStatus: $syncStatus, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isAggregate: $isAggregate')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      transactionType,
-      amountBase,
-      originalAmount,
-      originalCurrency,
-      exchangeRate,
-      rateDate,
-      rateEstimated,
-      rateSource,
-      exchangeEventId,
-      categoryId,
-      note,
-      sourceLabel,
-      transactionDate,
-      isRecurring,
-      recurrenceType,
-      syncStatus,
-      deletedAt,
-      createdAt,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        id,
+        transactionType,
+        amountBase,
+        originalAmount,
+        originalCurrency,
+        exchangeRate,
+        rateDate,
+        rateEstimated,
+        rateSource,
+        exchangeEventId,
+        categoryId,
+        note,
+        sourceLabel,
+        transactionDate,
+        isRecurring,
+        recurrenceType,
+        syncStatus,
+        deletedAt,
+        createdAt,
+        updatedAt,
+        isAggregate
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -692,7 +724,8 @@ class TransactionData extends DataClass implements Insertable<TransactionData> {
           other.syncStatus == this.syncStatus &&
           other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.isAggregate == this.isAggregate);
 }
 
 class TransactionsCompanion extends UpdateCompanion<TransactionData> {
@@ -716,6 +749,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
   final Value<DateTime?> deletedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<bool> isAggregate;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.id = const Value.absent(),
@@ -738,6 +772,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.isAggregate = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -761,6 +796,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.isAggregate = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         transactionType = Value(transactionType),
@@ -791,6 +827,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
     Expression<DateTime>? deletedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<bool>? isAggregate,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -814,6 +851,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (isAggregate != null) 'is_aggregate': isAggregate,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -839,6 +877,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
       Value<DateTime?>? deletedAt,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<bool>? isAggregate,
       Value<int>? rowid}) {
     return TransactionsCompanion(
       id: id ?? this.id,
@@ -861,6 +900,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
       deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isAggregate: isAggregate ?? this.isAggregate,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -928,6 +968,9 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (isAggregate.present) {
+      map['is_aggregate'] = Variable<bool>(isAggregate.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -957,6 +1000,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionData> {
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('isAggregate: $isAggregate, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3679,6 +3723,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<DateTime?> deletedAt,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<bool> isAggregate,
   Value<int> rowid,
 });
 typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
@@ -3703,6 +3748,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<DateTime?> deletedAt,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<bool> isAggregate,
   Value<int> rowid,
 });
 
@@ -3780,6 +3826,9 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isAggregate => $composableBuilder(
+      column: $table.isAggregate, builder: (column) => ColumnFilters(column));
 }
 
 class $$TransactionsTableOrderingComposer
@@ -3858,6 +3907,9 @@ class $$TransactionsTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isAggregate => $composableBuilder(
+      column: $table.isAggregate, builder: (column) => ColumnOrderings(column));
 }
 
 class $$TransactionsTableAnnotationComposer
@@ -3928,6 +3980,9 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isAggregate => $composableBuilder(
+      column: $table.isAggregate, builder: (column) => column);
 }
 
 class $$TransactionsTableTableManager extends RootTableManager<
@@ -3976,6 +4031,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> deletedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<bool> isAggregate = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion(
@@ -3999,6 +4055,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             deletedAt: deletedAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            isAggregate: isAggregate,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4022,6 +4079,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<DateTime?> deletedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<bool> isAggregate = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TransactionsCompanion.insert(
@@ -4045,6 +4103,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             deletedAt: deletedAt,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            isAggregate: isAggregate,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
