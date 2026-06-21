@@ -73,7 +73,7 @@ class CategoryTransactionsSheet extends ConsumerWidget {
 
     final total = transactions.fold<double>(
       0,
-      (sum, tx) => sum + tx.originalAmount.abs(),
+      (sum, tx) => sum + tx.amountBase.abs(),
     );
 
     final mediaQuery = MediaQuery.of(context);
@@ -119,7 +119,7 @@ class CategoryTransactionsSheet extends ConsumerWidget {
                         ),
                         Text(
                           '${transactions.length} ${transactions.length == 1 ? 'transaction' : 'transactions'} · '
-                          '${_formatTotal(total, transactions, filterCurrencies)}',
+                          '${_formatTotal(total, transactions, ref)}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -197,12 +197,10 @@ class CategoryTransactionsSheet extends ConsumerWidget {
   String _formatTotal(
     double total,
     List<TransactionData> txs,
-    Set<String>? filterCurrencies,
+    WidgetRef ref,
   ) {
     if (txs.isEmpty) return '0.00';
-    final currency = filterCurrencies != null && filterCurrencies.length == 1
-        ? filterCurrencies.first
-        : (txs.first.originalCurrency);
-    return '$currency ${total.toStringAsFixed(2)}';
+    final baseCurrency = ref.read(baseCurrencyProvider);
+    return '$baseCurrency ${total.toStringAsFixed(2)}';
   }
 }

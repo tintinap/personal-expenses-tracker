@@ -1,11 +1,11 @@
 import 'dart:math';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:uuid/uuid.dart';
 
 import 'package:drift/drift.dart' as drift;
 
 import '../../../core/database/database.dart';
-import '../../../core/providers/database_providers.dart';
+
 
 Future<void> clearAndMockData(AppDatabase db) async {
   final uuid = const Uuid();

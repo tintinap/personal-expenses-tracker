@@ -12,11 +12,14 @@ class CategoryDonutChart extends ConsumerStatefulWidget {
   /// that the slice represents.
   final void Function(String parentCategoryId)? onSliceTap;
 
+  final bool showViewCurrency;
+
   const CategoryDonutChart({
     super.key,
     this.excludedCategoryIds,
     this.filterCurrencies,
     this.onSliceTap,
+    this.showViewCurrency = true,
   });
 
   @override
@@ -33,6 +36,9 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
   Widget build(BuildContext context) {
     var expenses = ref.watch(expenseListProvider);
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
+    final baseCurrency = ref.watch(baseCurrencyProvider);
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+    final viewRate = ref.watch(viewCurrencyRateProvider).valueOrNull ?? 1.0;
     final theme = Theme.of(context);
 
     if (widget.excludedCategoryIds != null) {
@@ -128,14 +134,19 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
     }
 
     String centerLabel = 'Total';
-    String centerValue = totalSpent.toStringAsFixed(2);
+    double centerAmount = totalSpent;
 
     if (_touchedIndex >= 0 && _touchedIndex < sortedEntries.length) {
       final touchedEntry = sortedEntries[_touchedIndex];
       final touchedCategory = categories.where((c) => c.id == touchedEntry.key).firstOrNull;
       centerLabel = touchedCategory?.name ?? 'Unknown';
-      centerValue = touchedEntry.value.toStringAsFixed(2);
+      centerAmount = touchedEntry.value;
     }
+
+    String centerValue = '$baseCurrency ${centerAmount.toStringAsFixed(2)}';
+    String? centerSecondaryValue = widget.showViewCurrency && baseCurrency != viewCurrency 
+        ? '≈ $viewCurrency ${(centerAmount * viewRate).toStringAsFixed(2)}'
+        : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -191,12 +202,31 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
                     style: theme.textTheme.labelMedium,
                     textAlign: TextAlign.center,
                   ),
-                  Text(
-                    centerValue,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  SizedBox(
+                    width: chartSize * 0.45,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        centerValue,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24, // bigger font that will scale down if too wide
+                        ),
+                      ),
                     ),
                   ),
+                  if (centerSecondaryValue != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      centerSecondaryValue,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                        fontSize: 10,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ],

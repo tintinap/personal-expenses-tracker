@@ -9,6 +9,7 @@ import '../../../core/presentation/category_visuals.dart';
 import '../../../core/providers/database_providers.dart';
 import '../../shared/providers/shared_providers.dart';
 import '../../transactions/widgets/transaction_bottom_sheet.dart';
+import '../../transactions/widgets/transaction_detail_sheet.dart';
 
 /// Provider to fetch the paired exchange transaction.
 /// Key is "exchangeEventId|currentTxId".
@@ -195,128 +196,24 @@ class TransactionListTile extends ConsumerWidget {
     CategoryData? category,
     CategoryData? parent,
     String? exchangeRateLabel,
+    TransactionData? pairedTx,
   }) {
-    final theme = Theme.of(context);
-    final note = tx.note?.trim();
-    final isSub = parent != null && category != null;
-    final headerCategory = parent ?? category;
-
-    showDialog<void>(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-          title: Row(
-            children: [
-              if (headerCategory != null)
-                categoryGlyphAvatar(
-                  colour: parseHexColour(headerCategory.colourHex),
-                  iconCodePoint: headerCategory.iconCodePoint,
-                  radius: 18,
-                ),
-              if (headerCategory != null) const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  headerCategory?.name ?? 'Transaction',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isSub)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.subdirectory_arrow_right,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 6),
-                      categoryGlyphAvatar(
-                        colour: parseHexColour(category.colourHex),
-                        iconCodePoint: category.iconCodePoint,
-                        radius: 10,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          category.name,
-                          style: theme.textTheme.bodyMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              _kv(
-                theme,
-                'Date',
-                DateFormat.yMMMd().add_jm().format(tx.transactionDate),
-              ),
-              const SizedBox(height: 6),
-              _kv(
-                theme,
-                'Amount',
-                '${tx.originalCurrency} ${tx.originalAmount.toStringAsFixed(2)}',
-              ),
-              if (exchangeRateLabel != null) ...[
-                const SizedBox(height: 6),
-                _kv(theme, 'Rate', exchangeRateLabel),
-              ],
-              const SizedBox(height: 12),
-              Text(
-                'Note',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                note != null && note.isNotEmpty
-                    ? note
-                    : 'No note for this transaction.',
-                style: theme.textTheme.bodyMedium,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => TransactionDetailSheet(
+        transaction: tx,
+        pairedTransaction: pairedTx,
+        category: category,
+        parent: parent,
+        exchangeRateLabel: exchangeRateLabel,
+      ),
     );
   }
 
-  Widget _kv(ThemeData theme, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 64,
-          child: Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(value, style: theme.textTheme.bodyMedium),
-        ),
-      ],
-    );
-  }
+
 
   /// Returns (display, sub) where display is the parent (or self if top-level)
   /// and sub is non-null only when the transaction is on a sub-category.
@@ -359,6 +256,21 @@ class TransactionListTile extends ConsumerWidget {
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
     final hierarchy = _resolveCategoryHierarchy(categories, tx.categoryId);
     final display = hierarchy.display;
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+
+    // Per-transaction view amount: originalCurrency → viewCurrency at transaction date.
+    // Uses DB-only cached rate; returns null if no rate is cached (hides the row).
+    final dateKey = '${tx.transactionDate.year.toString().padLeft(4, '0')}-'
+        '${tx.transactionDate.month.toString().padLeft(2, '0')}-'
+        '${tx.transactionDate.day.toString().padLeft(2, '0')}';
+    final viewAmountAsync = ref.watch(txViewAmountProvider((
+      fromCurrency: tx.originalCurrency,
+      toCurrency: viewCurrency,
+      dateKey: dateKey,
+      originalAmount: tx.originalAmount.abs(),
+    )));
+    final viewAmount = viewAmountAsync.valueOrNull;
+
     final titleText = display?.name ??
         (tx.note?.trim().isNotEmpty == true
             ? tx.note!.trim()
@@ -395,12 +307,26 @@ class TransactionListTile extends ConsumerWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(DateFormat.jm().format(tx.transactionDate)),
-        trailing: Text(
-          '$prefix ${tx.originalCurrency} ${tx.originalAmount.toStringAsFixed(2)}',
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '$prefix ${tx.originalCurrency} ${tx.originalAmount.toStringAsFixed(2)}',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            // Show ≈ view currency only when there is a cached rate for this pair
+            if (viewAmount != null)
+              Text(
+                '≈ $prefix $viewCurrency ${viewAmount.toStringAsFixed(2)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: color?.withValues(alpha: 0.7),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -446,6 +372,8 @@ class TransactionListTile extends ConsumerWidget {
       toAmount: toAmount,
     );
 
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
     final hierarchy = _resolveCategoryHierarchy(categories, tx.categoryId);
     final display = hierarchy.display;
@@ -456,6 +384,19 @@ class TransactionListTile extends ConsumerWidget {
                 ? '$fromCurrency → $toCurrency'
                 : 'Exchange'));
 
+    // Per-transaction view amount for the "from" side of the exchange.
+    // Uses DB-only cached rate; returns null if no rate is cached.
+    final dateKey = '${tx.transactionDate.year.toString().padLeft(4, '0')}-'
+        '${tx.transactionDate.month.toString().padLeft(2, '0')}-'
+        '${tx.transactionDate.day.toString().padLeft(2, '0')}';
+    final exchangeViewAmountAsync = ref.watch(txViewAmountProvider((
+      fromCurrency: fromCurrency,
+      toCurrency: viewCurrency,
+      dateKey: dateKey,
+      originalAmount: fromAmount.abs(),
+    )));
+    final exchangeViewAmount = exchangeViewAmountAsync.valueOrNull;
+
     return Material(
       color: theme.scaffoldBackgroundColor,
       child: ListTile(
@@ -465,6 +406,7 @@ class TransactionListTile extends ConsumerWidget {
           category: hierarchy.sub ?? display,
           parent: hierarchy.sub != null ? display : null,
           exchangeRateLabel: rateLabel,
+          pairedTx: pairedTx,
         ),
         leading: display != null
             ? categoryGlyphAvatar(
@@ -514,6 +456,17 @@ class TransactionListTile extends ConsumerWidget {
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
+                ),
+              ),
+            // Show ≈ view currency only when both sides differ from view currency
+            // AND a cached rate is available (null = no rate cached → hide)
+            if (fromCurrency != viewCurrency &&
+                toCurrency != viewCurrency &&
+                exchangeViewAmount != null)
+              Text(
+                '≈ $viewCurrency ${exchangeViewAmount.toStringAsFixed(2)}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
               ),
           ],

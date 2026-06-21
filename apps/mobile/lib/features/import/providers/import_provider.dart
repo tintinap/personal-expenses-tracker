@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/database.dart';
 import '../../../core/providers/database_providers.dart';
+import '../../shared/providers/shared_providers.dart';
 import '../models/import_row.dart';
 
 class ImportState {
@@ -334,14 +335,9 @@ class ImportNotifier extends StateNotifier<ImportState> {
                   finalBaseAmt = amtVal! * finalRate;
                 } else {
                   // Try most recent fallback
-                  final recentRate = await db.exchangeRateDao.getMostRecent(currVal, baseCurrency);
-                  if (recentRate != null) {
-                    finalRate = recentRate.rate;
-                    finalBaseAmt = amtVal! * finalRate;
-                  } else {
-                    finalRate = 1.0;
-                    finalBaseAmt = amtVal!;
-                  }
+                  final recentRate = await db.exchangeRateDao.getMostRecentOrFetch(currVal, baseCurrency);
+                  finalRate = recentRate;
+                  finalBaseAmt = amtVal! * finalRate;
                 }
               }
             }
@@ -670,13 +666,48 @@ class ImportNotifier extends StateNotifier<ImportState> {
               }
             }
 
+            final baseCurrency = _ref.read(baseCurrencyProvider);
+
+            double outExchangeRate = 1.0;
+            double outAmountBase = row.originalAmount;
+            if (row.originalCurrency != baseCurrency) {
+              final cachedRate = await db.exchangeRateDao.getRate(row.originalCurrency, baseCurrency, row.date);
+              if (cachedRate != null) {
+                outExchangeRate = cachedRate.rate;
+                outAmountBase = row.originalAmount * outExchangeRate;
+              } else {
+                final recentRate = await db.exchangeRateDao.getMostRecent(row.originalCurrency, baseCurrency);
+                if (recentRate != null) {
+                  outExchangeRate = recentRate.rate;
+                  outAmountBase = row.originalAmount * outExchangeRate;
+                }
+              }
+            }
+
+            double inExchangeRate = 1.0;
+            double inAmountBase = row.amountBase; // Holds toAmount
+            final toCurrency = row.sourceLabel!;
+            if (toCurrency != baseCurrency) {
+              final cachedRate = await db.exchangeRateDao.getRate(toCurrency, baseCurrency, row.date);
+              if (cachedRate != null) {
+                inExchangeRate = cachedRate.rate;
+                inAmountBase = row.amountBase * inExchangeRate;
+              } else {
+                final recentRate = await db.exchangeRateDao.getMostRecent(toCurrency, baseCurrency);
+                if (recentRate != null) {
+                  inExchangeRate = recentRate.rate;
+                  inAmountBase = row.amountBase * inExchangeRate;
+                }
+              }
+            }
+
             final outSide = TransactionsCompanion(
               id: Value(outId),
               transactionType: const Value('currency_exchange_out'),
-              amountBase: Value(row.amountBase),
+              amountBase: Value(outAmountBase),
               originalAmount: Value(row.originalAmount),
               originalCurrency: Value(row.originalCurrency),
-              exchangeRate: Value(row.exchangeRate),
+              exchangeRate: Value(outExchangeRate),
               rateDate: Value(row.date),
               exchangeEventId: Value(eventId),
               transactionDate: Value(row.date),
@@ -688,10 +719,10 @@ class ImportNotifier extends StateNotifier<ImportState> {
             final inSide = TransactionsCompanion(
               id: Value(inId),
               transactionType: const Value('currency_exchange_in'),
-              amountBase: Value(row.amountBase),
+              amountBase: Value(inAmountBase),
               originalAmount: Value(row.amountBase), // For IN it is toAmount
               originalCurrency: Value(row.sourceLabel!), // Holds toCurrency
-              exchangeRate: const Value(1.0),
+              exchangeRate: Value(inExchangeRate),
               rateDate: Value(row.date),
               exchangeEventId: Value(eventId),
               transactionDate: Value(row.date),

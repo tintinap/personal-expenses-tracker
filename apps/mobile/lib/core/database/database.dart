@@ -252,6 +252,21 @@ class AppDatabase extends _$AppDatabase {
   Future<void> removeSyncItem(String id) async {
     await (delete(syncQueue)..where((t) => t.id.equals(id))).go();
   }
+
+  // ── Maintenance ───────────────────────────────────────────
+
+  /// Wipes all local data and re-seeds default categories/settings.
+  /// Used during Account Deletion flow.
+  Future<void> clearAllData() async {
+    await transaction(() async {
+      for (final table in allTables) {
+        await delete(table).go();
+      }
+    });
+    await _seedDefaultCategories();
+    await _seedDefaultSettings();
+    await _seedDefaultBudgets();
+  }
 }
 
 LazyDatabase _openConnection() {

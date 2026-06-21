@@ -62,44 +62,9 @@ final portfolioProvider = FutureProvider<CurrencyPortfolio>((ref) async {
 
     if (b.currency != baseCurrency) {
       // rate represents: 1 Base = X Quote ⇒ equivalent = balance / rate
-      final rate = await erDao.getMostRecent(baseCurrency, b.currency);
-      if (rate != null && rate.rate > 0) {
-        equivalent = b.balance / rate.rate;
-      } else {
-        // Fallback: hit public API once, then cache for next time.
-        try {
-          final publicDio = Dio();
-          final res = await publicDio.get(
-            'https://api.frankfurter.app/latest',
-            queryParameters: {
-              'from': baseCurrency,
-              'to': b.currency,
-            },
-          );
-
-          if (res.data != null &&
-              res.data['rates'] != null &&
-              res.data['rates'][b.currency] != null) {
-            final rateValue =
-                (res.data['rates'][b.currency] as num).toDouble();
-            final now = DateTime.now();
-            final dateOnly = DateTime(now.year, now.month, now.day);
-
-            await erDao.cacheRate(ExchangeRatesCompanion.insert(
-              id: 'er-$baseCurrency-${b.currency}-${dateOnly.millisecondsSinceEpoch}',
-              baseCurrency: baseCurrency,
-              quoteCurrency: b.currency,
-              rateDate: dateOnly,
-              rate: rateValue,
-            ));
-
-            equivalent = b.balance / rateValue;
-          } else {
-            equivalent = b.balance;
-          }
-        } catch (_) {
-          equivalent = b.balance;
-        }
+      final rate = await erDao.getMostRecentOrFetch(baseCurrency, b.currency);
+      if (rate > 0) {
+        equivalent = b.balance / rate;
       }
     }
 

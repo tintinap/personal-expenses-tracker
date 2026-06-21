@@ -5,6 +5,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/shared/providers/shared_providers.dart';
 import 'features/budgets/providers/budget_notification_service.dart';
+import 'features/sync/providers/sync_provider.dart';
 
 /// PRD §5 — Root MaterialApp using go_router
 class DailySpendApp extends ConsumerWidget {
@@ -16,6 +17,8 @@ class DailySpendApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     // Activate budget notification listener (ref.listen inside this provider fires on changes)
     ref.watch(budgetNotificationServiceProvider);
+    // Mount sync provider to start background worker
+    ref.watch(syncProvider);
 
     return MaterialApp.router(
       title: 'DailySpend',

@@ -55,11 +55,9 @@ class ReportsScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                     CategoryDonutChart(
                       excludedCategoryIds: const {},
-                      filterCurrencies: {baseCurrency},
                       onSliceTap: (parentId) => CategoryTransactionsSheet.show(
                         context,
                         parentCategoryId: parentId,
-                        filterCurrencies: {baseCurrency},
                       ),
                     ),
                   ],

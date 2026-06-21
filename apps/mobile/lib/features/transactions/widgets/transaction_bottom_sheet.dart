@@ -357,6 +357,8 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
     final dao = ref.read(transactionDaoProvider);
     final db = ref.read(databaseProvider);
     final balanceDao = ref.read(currencyBalanceDaoProvider);
+    final baseCurrency = ref.read(baseCurrencyProvider);
+    final rateDao = ref.read(exchangeRateDaoProvider);
 
     final id = widget.initialTransaction?.id ?? const Uuid().v4();
     final now = DateTime.now();
@@ -365,7 +367,6 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       final toAmount = double.tryParse(_exchangeToAmountController.text);
       if (toAmount == null || toAmount <= 0) return;
 
-      final exchangeRate = toAmount / amount;
       final isEditing = widget.initialTransaction != null;
       
       // Determine which side is the out and which is the in
@@ -383,14 +384,28 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       final inId = isEditing
           ? (isInitOut ? pairedTx?.id ?? const Uuid().v4() : initTx!.id)
           : const Uuid().v4();
+
+      double outExchangeRate = 1.0;
+      double outAmountBase = amount;
+      if (_fromCurrency != baseCurrency) {
+        outExchangeRate = await rateDao.getMostRecentOrFetch(_fromCurrency, baseCurrency);
+        outAmountBase = amount * outExchangeRate;
+      }
+
+      double inExchangeRate = 1.0;
+      double inAmountBase = toAmount;
+      if (_toCurrency != baseCurrency) {
+        inExchangeRate = await rateDao.getMostRecentOrFetch(_toCurrency, baseCurrency);
+        inAmountBase = toAmount * inExchangeRate;
+      }
       
       final outSide = TransactionsCompanion.insert(
         id: outId,
         transactionType: 'currency_exchange_out',
-        amountBase: toAmount,
+        amountBase: outAmountBase,
         originalAmount: amount,
         originalCurrency: _fromCurrency,
-        exchangeRate: exchangeRate,
+        exchangeRate: outExchangeRate,
         rateDate: _selectedDate,
         exchangeEventId: Value(eventId),
         transactionDate: _selectedDate,
@@ -400,10 +415,10 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       final inSide = TransactionsCompanion.insert(
         id: inId,
         transactionType: 'currency_exchange_in',
-        amountBase: toAmount,
+        amountBase: inAmountBase,
         originalAmount: toAmount,
         originalCurrency: _toCurrency,
-        exchangeRate: 1.0,
+        exchangeRate: inExchangeRate,
         rateDate: _selectedDate,
         exchangeEventId: Value(eventId),
         transactionDate: _selectedDate,
@@ -426,14 +441,21 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
     }
 
     String txType = _selectedTab == TransactionTabType.income ? 'currency_income' : 'expense';
+
+    double exchangeRate = 1.0;
+    double amountBase = amount;
+    if (_fromCurrency != baseCurrency) {
+      exchangeRate = await rateDao.getMostRecentOrFetch(_fromCurrency, baseCurrency);
+      amountBase = amount * exchangeRate;
+    }
     
     final entry = TransactionsCompanion.insert(
       id: id,
       transactionType: txType,
-      amountBase: amount,
+      amountBase: amountBase,
       originalAmount: amount,
       originalCurrency: _fromCurrency,
-      exchangeRate: 1.0,
+      exchangeRate: exchangeRate,
       rateDate: _selectedDate,
       categoryId: Value(_selectedSubCategoryId ?? _selectedCategoryId),
       note: Value(_noteController.text),

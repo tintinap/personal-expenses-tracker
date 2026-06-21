@@ -99,14 +99,11 @@ final previousPeriodTransactionsProvider =
   return dao.watchByDateRange(prev.from, prev.to);
 });
 
-/// Day → total spend for the selected period (expenses only, base currency).
+/// Day → total spend for the selected period (expenses only, converted to view currency).
 final dailySpendAggregateProvider = Provider<Map<DateTime, double>>((ref) {
-  final baseCurrency = ref.watch(baseCurrencyProvider);
   final transactions = ref.watch(transactionListProvider).valueOrNull ?? [];
 
-  final expenses = transactions.where(
-    (t) => t.transactionType == 'expense' && t.originalCurrency == baseCurrency,
-  );
+  final expenses = transactions.where((t) => t.transactionType == 'expense');
 
   final result = <DateTime, double>{};
   for (final tx in expenses) {
@@ -115,20 +112,17 @@ final dailySpendAggregateProvider = Provider<Map<DateTime, double>>((ref) {
       tx.transactionDate.month,
       tx.transactionDate.day,
     );
-    result[day] = (result[day] ?? 0) + tx.originalAmount.abs();
+    result[day] = (result[day] ?? 0) + tx.amountBase.abs();
   }
   return result;
 });
 
 /// Sorted list of category spend breakdowns for the selected period.
 final categorySpendProvider = Provider<List<CategorySpend>>((ref) {
-  final baseCurrency = ref.watch(baseCurrencyProvider);
   final transactions = ref.watch(transactionListProvider).valueOrNull ?? [];
   final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
 
-  final expenses = transactions.where(
-    (t) => t.transactionType == 'expense' && t.originalCurrency == baseCurrency,
-  );
+  final expenses = transactions.where((t) => t.transactionType == 'expense');
 
   // Aggregate by parent category
   final totals = <String, double>{};
@@ -140,7 +134,7 @@ final categorySpendProvider = Provider<List<CategorySpend>>((ref) {
           categories.where((c) => c.id == tx.categoryId).firstOrNull;
       final displayId =
           (cat != null && cat.parentId != null) ? cat.parentId! : tx.categoryId!;
-      final amount = tx.originalAmount.abs();
+      final amount = tx.amountBase.abs();
       totals[displayId] = (totals[displayId] ?? 0) + amount;
       grandTotal += amount;
     }
@@ -178,22 +172,18 @@ final trendSpendProvider = Provider<List<TrendPoint>>((ref) {
 
 /// Comparison between current and previous period spend totals.
 final periodComparisonProvider = Provider<PeriodComparison>((ref) {
-  final baseCurrency = ref.watch(baseCurrencyProvider);
+
   final currentTxs = ref.watch(transactionListProvider).valueOrNull ?? [];
   final previousTxs =
       ref.watch(previousPeriodTransactionsProvider).valueOrNull ?? [];
 
   double currentTotal = currentTxs
-      .where((t) =>
-          t.transactionType == 'expense' &&
-          t.originalCurrency == baseCurrency)
-      .fold(0.0, (sum, t) => sum + t.originalAmount.abs());
+      .where((t) => t.transactionType == 'expense')
+      .fold(0.0, (sum, t) => sum + t.amountBase.abs());
 
   double previousTotal = previousTxs
-      .where((t) =>
-          t.transactionType == 'expense' &&
-          t.originalCurrency == baseCurrency)
-      .fold(0.0, (sum, t) => sum + t.originalAmount.abs());
+      .where((t) => t.transactionType == 'expense')
+      .fold(0.0, (sum, t) => sum + t.amountBase.abs());
 
   final hasPreviousData = previousTxs.isNotEmpty;
   final absoluteDiff = currentTotal - previousTotal;

@@ -13,7 +13,9 @@ class CategorySpendList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categorySpendList = ref.watch(categorySpendProvider);
-    final baseCurrency = ref.watch(baseCurrencyProvider);
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+    final viewRate = ref.watch(viewCurrencyRateProvider).valueOrNull ?? 1.0;
+    final baseCurrency = ref.watch(baseCurrencyProvider); // Kept for the sheet filter
     final theme = Theme.of(context);
 
     if (categorySpendList.isEmpty) {
@@ -43,7 +45,6 @@ class CategorySpendList extends ConsumerWidget {
             CategoryTransactionsSheet.show(
               context,
               parentCategoryId: item.categoryId,
-              filterCurrencies: {baseCurrency},
             );
           },
           child: Padding(
@@ -80,11 +81,26 @@ class CategorySpendList extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Text(
-                            '$baseCurrency ${item.amount.toStringAsFixed(2)}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '$baseCurrency ${item.amount.toStringAsFixed(2)}',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (baseCurrency != viewCurrency) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  '≈ $viewCurrency ${(item.amount * viewRate).toStringAsFixed(2)}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),

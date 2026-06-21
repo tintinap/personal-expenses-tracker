@@ -286,6 +286,57 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
     }
     return totals.map((k, v) => MapEntry(k, v.toImmutable()));
   }
+
+  /// T16: Base currency change re-conversion
+  /// Iterates over all transactions and recalculates `amountBase` using the new base currency.
+  Future<void> recalculateBaseAmounts(
+    String newBaseCurrency,
+    Future<double> Function(String fromCurrency, String toCurrency) getRate,
+  ) async {
+    final allTxs = await select(transactions).get();
+    
+    // 1. Gather all unique currencies that need conversion
+    final neededCurrencies = <String>{};
+    for (final tx in allTxs) {
+      if (tx.originalCurrency != newBaseCurrency) {
+        neededCurrencies.add(tx.originalCurrency);
+      }
+    }
+
+    // 2. Fetch all required rates asynchronously
+    final rates = <String, double>{};
+    for (final currency in neededCurrencies) {
+      try {
+        rates[currency] = await getRate(currency, newBaseCurrency);
+      } catch (_) {
+        rates[currency] = 1.0; // Fallback
+      }
+    }
+
+    // 3. Apply updates in a fast synchronous batch
+    await batch((batch) {
+      for (final tx in allTxs) {
+        if (tx.originalCurrency == newBaseCurrency) {
+          if (tx.amountBase != tx.originalAmount) {
+            batch.replace(
+              transactions,
+              tx.copyWith(amountBase: tx.originalAmount, exchangeRate: 1.0),
+            );
+          }
+        } else {
+          final rate = rates[tx.originalCurrency] ?? 1.0;
+          final newBase = tx.originalAmount * rate;
+          batch.replace(
+            transactions,
+            tx.copyWith(
+              amountBase: newBase,
+              exchangeRate: rate,
+            ),
+          );
+        }
+      }
+    });
+  }
 }
 
 class _MutableBreakdown {

@@ -90,12 +90,11 @@ class HomeScreen extends ConsumerWidget {
                         child: SizedBox(
                           height: 150,
                           child: CategoryDonutChart(
-                            filterCurrencies: {baseCurrency},
+                            showViewCurrency: false,
                             onSliceTap: (parentId) =>
                                 CategoryTransactionsSheet.show(
                               context,
                               parentCategoryId: parentId,
-                              filterCurrencies: {baseCurrency},
                             ),
                           ),
                         ),

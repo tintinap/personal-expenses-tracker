@@ -1,10 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+
+import '../../../core/network/dio_client.dart';
+import '../../../core/providers/database_providers.dart';
+import '../../sync/providers/sync_provider.dart';
 
 const _storage = FlutterSecureStorage();
 
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier();
+  return AuthNotifier(ref);
 });
 
 class AuthState {
@@ -28,13 +34,15 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState(isLoading: true)) {
+  final Ref _ref;
+
+  AuthNotifier(this._ref) : super(const AuthState(isLoading: true)) {
     _checkAuthStatus();
   }
 
   Future<void> _checkAuthStatus() async {
     try {
-      final token = await _storage.read(key: 'jwt_access_token');
+      final token = await _storage.read(key: 'access_token');
       // Ignore placeholder mock tokens from development
       final isValid = token != null &&
           token.isNotEmpty &&
@@ -48,29 +56,101 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // TODO: Replace with actual Google Sign-In + backend token exchange
-      await Future.delayed(const Duration(seconds: 1));
-      state = state.copyWith(isLoading: false, error: 'Google Sign-In not yet configured');
+      final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        state = state.copyWith(isLoading: false);
+        return; // User canceled
+      }
+      
+      final auth = await account.authentication;
+      if (auth.idToken == null) {
+        throw Exception('Missing Google ID Token');
+      }
+
+      final dio = _ref.read(dioProvider);
+      final response = await dio.post('/auth/google', data: {
+        'idToken': auth.idToken,
+        'email': account.email,
+        'displayName': account.displayName ?? '',
+        'avatarUrl': account.photoUrl,
+        'providerId': account.id,
+      });
+
+      final data = response.data;
+      await _storage.write(key: 'access_token', value: data['accessToken']);
+      await _storage.write(key: 'refresh_token', value: data['refreshToken']);
+      
+      state = state.copyWith(isAuthenticated: true, isLoading: false);
+      
+      // Trigger initial sync
+      _ref.read(syncProvider.notifier).pushAllLocalRecords();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Google sign-in failed');
+      state = state.copyWith(isLoading: false, error: 'Google sign-in failed: ${e.toString()}');
     }
   }
 
   Future<void> signInWithApple() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // TODO: Replace with actual Apple Sign-In + backend token exchange
-      await Future.delayed(const Duration(seconds: 1));
-      state = state.copyWith(isLoading: false, error: 'Apple Sign-In not yet configured');
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      if (credential.identityToken == null) {
+        throw Exception('Missing Apple Identity Token');
+      }
+
+      final dio = _ref.read(dioProvider);
+      final response = await dio.post('/auth/apple', data: {
+        'identityToken': credential.identityToken,
+        'email': credential.email ?? '',
+        'displayName': [credential.givenName, credential.familyName]
+            .where((e) => e != null)
+            .join(' '),
+        'providerId': credential.userIdentifier,
+      });
+
+      final data = response.data;
+      await _storage.write(key: 'access_token', value: data['accessToken']);
+      await _storage.write(key: 'refresh_token', value: data['refreshToken']);
+
+      state = state.copyWith(isAuthenticated: true, isLoading: false);
+
+      // Trigger initial sync
+      _ref.read(syncProvider.notifier).pushAllLocalRecords();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Apple sign-in failed');
+      state = state.copyWith(isLoading: false, error: 'Apple sign-in failed: ${e.toString()}');
     }
   }
 
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true);
-    await _storage.delete(key: 'jwt_access_token');
-    await _storage.delete(key: 'jwt_refresh_token');
+    await _storage.delete(key: 'access_token');
+    await _storage.delete(key: 'refresh_token');
     state = const AuthState(isAuthenticated: false, isLoading: false);
+  }
+
+  Future<void> deleteAccount() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final dio = _ref.read(dioProvider);
+      await dio.delete('/auth/account');
+      
+      // Clear local database
+      final db = _ref.read(databaseProvider);
+      await db.clearAllData();
+
+      // Clear tokens
+      await _storage.delete(key: 'access_token');
+      await _storage.delete(key: 'refresh_token');
+      
+      state = const AuthState(isAuthenticated: false, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: 'Account deletion failed: ${e.toString()}');
+    }
   }
 }

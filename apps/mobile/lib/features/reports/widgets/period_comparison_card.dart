@@ -12,6 +12,8 @@ class PeriodComparisonCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final comparison = ref.watch(periodComparisonProvider);
     final baseCurrency = ref.watch(baseCurrencyProvider);
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+    final viewRate = ref.watch(viewCurrencyRateProvider).valueOrNull ?? 1.0;
     final theme = Theme.of(context);
 
     return Card(
@@ -32,6 +34,8 @@ class PeriodComparisonCard extends ConsumerWidget {
                     label: 'This Period',
                     amount: comparison.currentTotal,
                     currency: baseCurrency,
+                    viewCurrency: viewCurrency,
+                    viewRate: viewRate,
                     isHighlight: true,
                   ),
                 ),
@@ -46,6 +50,8 @@ class PeriodComparisonCard extends ConsumerWidget {
                     label: 'Previous',
                     amount: comparison.previousTotal,
                     currency: baseCurrency,
+                    viewCurrency: viewCurrency,
+                    viewRate: viewRate,
                     isHighlight: false,
                   ),
                 ),
@@ -74,12 +80,16 @@ class _StatColumn extends StatelessWidget {
   final String label;
   final double amount;
   final String currency;
+  final String viewCurrency;
+  final double viewRate;
   final bool isHighlight;
 
   const _StatColumn({
     required this.label,
     required this.amount,
     required this.currency,
+    required this.viewCurrency,
+    required this.viewRate,
     required this.isHighlight,
   });
 
@@ -107,6 +117,18 @@ class _StatColumn extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        if (currency != viewCurrency) ...[
+          const SizedBox(height: 2),
+          Text(
+            '≈ $viewCurrency ${(amount * viewRate).toStringAsFixed(2)}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+              fontSize: 11,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ],
     );
   }

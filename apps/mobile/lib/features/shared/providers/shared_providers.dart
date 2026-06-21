@@ -4,6 +4,7 @@ import '../../../core/database/daos/transaction_dao.dart' show CurrencyBreakdown
 import '../../../core/database/database.dart';
 import '../../../core/providers/database_providers.dart';
 
+
 /// PRD §21 — Period Selector State
 enum PeriodType { daily, weekly, fortnightly, monthly, yearly, custom }
 
@@ -193,19 +194,106 @@ class BaseCurrencyNotifier extends Notifier<String> {
   Future<void> _load() async {
     final db = ref.read(databaseProvider);
     final value = await db.getSetting('base_currency');
+    final currentBase = (value != null && value.isNotEmpty) ? value : 'AUD';
+    if (value != null && value.isNotEmpty) state = value;
+
+    // Trigger full database re-conversion for transactions on startup to ensure consistency
+    final txDao = ref.read(transactionDaoProvider);
+    final rateDao = ref.read(exchangeRateDaoProvider);
+    await txDao.recalculateBaseAmounts(currentBase, (from, to) async {
+      return await rateDao.getMostRecentOrFetch(from, to);
+    });
+  }
+
+  Future<void> set(String code) async {
+    final upper = code.toUpperCase();
+    if (state == upper) return;
+
+    final db = ref.read(databaseProvider);
+    await db.setSetting('base_currency', upper);
+    state = upper;
+
+    // Trigger full database re-conversion for transactions
+    final txDao = ref.read(transactionDaoProvider);
+    final rateDao = ref.read(exchangeRateDaoProvider);
+    
+    await txDao.recalculateBaseAmounts(upper, (from, to) async {
+      return await rateDao.getMostRecentOrFetch(from, to);
+    });
+  }
+}
+
+final baseCurrencyProvider =
+    NotifierProvider<BaseCurrencyNotifier, String>(BaseCurrencyNotifier.new);
+
+/// PRD §21 — View Currency Provider (Display only, persisted in `settings`).
+class ViewCurrencyNotifier extends Notifier<String> {
+  @override
+  String build() {
+    _load();
+    return 'AUD';
+  }
+
+  Future<void> _load() async {
+    final db = ref.read(databaseProvider);
+    final value = await db.getSetting('view_currency');
     if (value != null && value.isNotEmpty) state = value;
   }
 
   Future<void> set(String code) async {
     final upper = code.toUpperCase();
     final db = ref.read(databaseProvider);
-    await db.setSetting('base_currency', upper);
+    await db.setSetting('view_currency', upper);
     state = upper;
   }
 }
 
-final baseCurrencyProvider =
-    NotifierProvider<BaseCurrencyNotifier, String>(BaseCurrencyNotifier.new);
+final viewCurrencyProvider =
+    NotifierProvider<ViewCurrencyNotifier, String>(ViewCurrencyNotifier.new);
+
+/// PRD §21 — View Currency Exchange Rate
+/// Provides the current exchange rate from Base Currency to View Currency
+final viewCurrencyRateProvider = FutureProvider<double>((ref) async {
+  final baseCurrency = ref.watch(baseCurrencyProvider);
+  final viewCurrency = ref.watch(viewCurrencyProvider);
+  if (baseCurrency == viewCurrency) return 1.0;
+
+  final rateDao = ref.watch(exchangeRateDaoProvider);
+  final rate = await rateDao.getMostRecentOrFetch(baseCurrency, viewCurrency);
+  return rate;
+});
+
+/// Per-transaction view amount provider.
+///
+/// Converts [originalAmount] from [fromCurrency] to the current view currency
+/// using a **DB-only cached rate** for the transaction's date.
+///
+/// Returns `null` when:
+/// - [fromCurrency] == view currency (no conversion needed / don't show)
+/// - No cached rate exists for this pair at all (no connectivity at save time)
+///
+/// Key format: "$fromCurrency|$toCurrency|$dateStr|$originalAmount"
+typedef _TxViewKey = ({
+  String fromCurrency,
+  String toCurrency,
+  String dateKey, // "yyyy-MM-dd"
+  double originalAmount,
+});
+
+final txViewAmountProvider =
+    FutureProvider.family<double?, _TxViewKey>((ref, args) async {
+  if (args.fromCurrency == args.toCurrency) return null;
+
+  final rateDao = ref.watch(exchangeRateDaoProvider);
+  final date = DateTime.parse(args.dateKey);
+  final rate = await rateDao.getForDateOrRecent(
+    args.fromCurrency,
+    args.toCurrency,
+    date,
+  );
+  if (rate == null) return null;
+  return args.originalAmount * rate;
+});
 
 /// Persisted theme-mode preference (system / light / dark).
 class ThemeModeNotifier extends Notifier<ThemeMode> {
@@ -272,16 +360,14 @@ class DashboardSummary {
 }
 
 final dashboardSummaryProvider = Provider<DashboardSummary>((ref) {
-  final baseCurrency = ref.watch(baseCurrencyProvider);
   final transactions = ref.watch(transactionListProvider).valueOrNull ?? [];
   final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
 
-  final baseTransactions = transactions.where((t) => t.originalCurrency == baseCurrency);
-  final expenses = baseTransactions.where((t) => t.transactionType == 'expense').toList();
-  final incomes = baseTransactions.where((t) => t.transactionType == 'currency_income' || t.transactionType == 'currency_exchange_in').toList();
+  final expenses = transactions.where((t) => t.transactionType == 'expense').toList();
+  final incomes = transactions.where((t) => t.transactionType == 'currency_income').toList();
   
-  double totalSpent = expenses.fold(0.0, (sum, e) => sum + e.originalAmount.abs());
-  double totalIncome = incomes.fold(0.0, (sum, i) => sum + i.originalAmount.abs());
+  double totalSpent = expenses.fold(0.0, (sum, e) => sum + e.amountBase.abs());
+  double totalIncome = incomes.fold(0.0, (sum, i) => sum + i.amountBase.abs());
   double netIncome = totalIncome - totalSpent;
 
   if (expenses.isEmpty) {
@@ -300,7 +386,7 @@ final dashboardSummaryProvider = Provider<DashboardSummary>((ref) {
       // Resolve sub-category to parent for display grouping
       final cat = categories.where((c) => c.id == expense.categoryId).firstOrNull;
       final displayId = (cat != null && cat.parentId != null) ? cat.parentId! : expense.categoryId!;
-      categoryTotals[displayId] = (categoryTotals[displayId] ?? 0) + expense.originalAmount.abs();
+      categoryTotals[displayId] = (categoryTotals[displayId] ?? 0) + expense.amountBase.abs();
     }
   }
 
