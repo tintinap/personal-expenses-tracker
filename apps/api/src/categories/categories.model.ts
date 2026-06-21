@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, MaxLength, Matches } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, MaxLength, Matches, IsUUID, IsInt } from 'class-validator';
 
 export class CreateCategoryDto {
   @IsOptional()
@@ -12,6 +12,14 @@ export class CreateCategoryDto {
   @IsString()
   @Matches(/^#[0-9A-Fa-f]{6}$/, { message: 'colourHex must be a valid hex colour (e.g. #378ADD)' })
   colourHex: string;
+
+  @IsOptional()
+  @IsUUID()
+  parentId?: string;
+
+  @IsOptional()
+  @IsInt()
+  iconCodePoint?: number;
 }
 
 export class UpdateCategoryDto {
@@ -28,4 +36,12 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsBoolean()
   isHidden?: boolean;
+
+  @IsOptional()
+  @IsUUID()
+  parentId?: string;
+
+  @IsOptional()
+  @IsInt()
+  iconCodePoint?: number;
 }

@@ -1,6 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthRepository } from './auth.repository';
+import { OAuth2Client } from 'google-auth-library';
+import * as appleSignin from 'apple-signin-auth';
 
 export interface JwtPayload {
   sub: string; // user ID
@@ -13,6 +15,34 @@ export class AuthService {
     private readonly repository: AuthRepository,
     private readonly jwtService: JwtService,
   ) {}
+
+  private readonly googleClient = new OAuth2Client();
+
+  async verifyGoogleToken(idToken: string) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.split(',') : undefined,
+      });
+      const payload = ticket.getPayload();
+      if (!payload) throw new UnauthorizedException('Invalid Google token payload');
+      return payload;
+    } catch (error: any) {
+      throw new UnauthorizedException(`Google token verification failed: ${error.message}`);
+    }
+  }
+
+  async verifyAppleToken(identityToken: string) {
+    try {
+      const payload = await appleSignin.verifyIdToken(identityToken, {
+        audience: process.env.APPLE_CLIENT_ID ? process.env.APPLE_CLIENT_ID.split(',') : undefined,
+        ignoreExpiration: false,
+      });
+      return payload;
+    } catch (error: any) {
+      throw new UnauthorizedException(`Apple token verification failed: ${error.message}`);
+    }
+  }
 
   async validateOrCreateUser(profile: {
     email: string;
@@ -79,5 +109,9 @@ export class AuthService {
 
   async getUserById(userId: string) {
     return this.repository.findUserById(userId);
+  }
+
+  async deleteAccount(userId: string) {
+    return this.repository.deleteUser(userId);
   }
 }

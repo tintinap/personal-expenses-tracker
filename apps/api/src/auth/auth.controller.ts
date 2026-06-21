@@ -33,13 +33,14 @@ export class AuthController {
       refreshToken?: string;
     },
   ) {
-    // TODO: Validate Google ID token server-side with Google's tokeninfo endpoint
+    const payload = await this.authService.verifyGoogleToken(body.idToken);
+    
     const user = await this.authService.validateOrCreateUser({
       email: body.email,
       displayName: body.displayName,
       avatarUrl: body.avatarUrl,
       authProvider: 'google',
-      providerId: body.providerId,
+      providerId: payload.sub || body.providerId,
       googleRefreshToken: body.refreshToken,
     });
 
@@ -74,12 +75,13 @@ export class AuthController {
       providerId: string;
     },
   ) {
-    // TODO: Validate Apple identity token server-side
+    const payload = await this.authService.verifyAppleToken(body.identityToken);
+    
     const user = await this.authService.validateOrCreateUser({
       email: body.email,
       displayName: body.displayName,
       authProvider: 'apple',
-      providerId: body.providerId,
+      providerId: payload.sub || body.providerId,
     });
 
     const tokens = await this.authService.generateTokens(user.id, user.email);
@@ -104,8 +106,23 @@ export class AuthController {
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() body: RefreshTokenDto) {
-    return this.authService.refreshAccessToken(body.refreshToken);
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    return this.authService.refreshTokens(refreshToken);
+  }
+
+  /**
+   * DELETE /auth/account
+   * Deletes the user account and all associated data.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('account')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteAccount(@Request() req: any) {
+    await this.authService.deleteAccount(req.user.id);
   }
 
   /**

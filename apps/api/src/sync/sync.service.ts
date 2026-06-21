@@ -25,7 +25,7 @@ export class SyncService {
     }>,
   ) {
     let accepted = 0;
-    const conflicts: any[] = [];
+    const conflicts: Array<{ recordType: string; recordId: string; error: string }> = [];
 
     for (const record of records) {
       try {
@@ -83,6 +83,19 @@ export class SyncService {
     };
   }
 
+  private getBalanceDelta(transactionType: string, amount: number): number {
+    switch (transactionType) {
+      case 'expense':
+      case 'currency_exchange_out':
+        return -amount;
+      case 'currency_income':
+      case 'currency_exchange_in':
+        return amount;
+      default:
+        return 0;
+    }
+  }
+
   private async syncTransaction(
     userId: string,
     record: { recordId: string; operation: string; payload: any },
@@ -114,6 +127,11 @@ export class SyncService {
           isRecurring: payload.isRecurring || false,
           recurrenceType: payload.recurrenceType || null,
         });
+
+        const delta = this.getBalanceDelta(payload.transactionType, Number(payload.originalAmount));
+        if (delta !== 0) {
+          await this.repository.upsertCurrencyBalance(userId, payload.originalCurrency, delta);
+        }
         break;
       }
 
@@ -136,6 +154,22 @@ export class SyncService {
               note: payload.note || null,
               transactionDate: new Date(payload.transactionDate),
             });
+
+            // Reverse old balance impact
+            const oldDelta = this.getBalanceDelta(existing.transactionType, Number(existing.originalAmount));
+            if (oldDelta !== 0) {
+              await this.repository.upsertCurrencyBalance(userId, existing.originalCurrency, -oldDelta);
+            }
+
+            // Apply new balance impact
+            const newTxType = payload.transactionType || existing.transactionType;
+            const newAmount = payload.originalAmount !== undefined ? payload.originalAmount : existing.originalAmount;
+            const newCurrency = payload.originalCurrency || existing.originalCurrency;
+            
+            const newDelta = this.getBalanceDelta(newTxType, Number(newAmount));
+            if (newDelta !== 0) {
+              await this.repository.upsertCurrencyBalance(userId, newCurrency, newDelta);
+            }
           } else {
             // Server version is newer — log conflict
             await this.repository.logConflict({
@@ -151,6 +185,13 @@ export class SyncService {
       }
 
       case 'delete': {
+        const existing = await this.repository.findTransactionById(recordId);
+        if (existing && !existing.deletedAt) {
+          const oldDelta = this.getBalanceDelta(existing.transactionType, Number(existing.originalAmount));
+          if (oldDelta !== 0) {
+            await this.repository.upsertCurrencyBalance(userId, existing.originalCurrency, -oldDelta);
+          }
+        }
         await this.repository.softDeleteTransaction(recordId);
         break;
       }
