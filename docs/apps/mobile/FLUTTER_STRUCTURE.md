@@ -1,52 +1,130 @@
 # Flutter Project Structure
 
+**Last Updated:** 21 June 2026 (v5.1.0)
+
 ## Architecture Pattern
 **Riverpod + Clean Architecture Hybrid**
-The project uses Riverpod for state management and DI, structured by feature folders (`lib/features/`) with a `core` and `data` layer. It also uses Drift for local offline-first SQLite database management.
+The project uses Riverpod for state management and DI, structured by feature folders (`lib/features/`) with a `core` and `shared` layer. It uses Drift for local offline-first SQLite database management. All UI state goes through `AsyncValue`-based providers; no direct DAO calls from widgets.
 
 ## HTTP Package
-**dio** (Primary) and **http** (Legacy in DatabaseService)
+**dio** (primary — all network calls via `lib/core/network/dio_client.dart`)
+
+---
 
 ## Screens Inventory
 
 | Screen | File | API Calls Made |
 |--------|------|----------------|
-| HomeScreen | `lib/features/home/screens/home_screen.dart` | *(Via sync provider & providers)* |
-| DashboardDetailScreen | `lib/features/home/screens/dashboard_detail_screen.dart` | - |
-| WalletsScreen | `lib/features/wallets/screens/wallets_screen.dart` | `GET Frankfurter` *(via portfolioProvider)* |
-| CurrencyDetailScreen | `lib/features/wallets/screens/currency_detail_screen.dart` | - |
-| TransactionBottomSheet | `lib/features/transactions/widgets/transaction_bottom_sheet.dart` | `GET /exchange-rates/{date}`, `GET Frankfurter` |
+| `HomeScreen` | `lib/features/home/screens/home_screen.dart` | Via Riverpod providers (exchange rates) |
+| `DashboardDetailScreen` | `lib/features/home/screens/dashboard_detail_screen.dart` | Via providers |
+| `WalletsScreen` | `lib/features/wallets/screens/wallets_screen.dart` | `GET /exchange-rates/latest` *(via portfolioProvider)* |
+| `CurrencyDetailScreen` | `lib/features/wallets/screens/currency_detail_screen.dart` | — |
+| `ReportsScreen` | `lib/features/reports/screens/reports_screen.dart` | — |
+| `BudgetsScreen` | `lib/features/budgets/screens/budgets_screen.dart` | — |
+| `SettingsScreen` | `lib/features/settings/screens/settings_screen.dart` | `GET /export/excel` |
+| `TransactionBottomSheet` | `lib/features/transactions/widgets/transaction_bottom_sheet.dart` | `GET /exchange-rates/{date}`, `GET https://api.frankfurter.app/...` |
+| `ImportScreen` | `lib/features/import/screens/import_screen.dart` | Mobile: local SQLite only (offline-first) |
+| `ExportScreen` | `lib/features/export/` | `GET /export/excel` |
 
-## Services / Repositories
+---
 
-| Class | File | Endpoints It Calls |
-|-------|------|--------------------|
-| `DioProvider` / `AuthInterceptor` | `lib/core/network/dio_client.dart` | `POST /auth/refresh` |
-| `DatabaseService` (Legacy) | `lib/data/database/database_service.dart` | `GET /expenses`, `POST /expenses`, `PUT`, `DELETE` |
-| `ExchangeRateRepository` | `lib/features/transactions/repositories/exchange_rate_repository.dart` | `GET /exchange-rates/{date}`, `POST /exchange-rates`, `GET Frankfurter` |
-| `SyncNotifier` | `lib/features/sync/providers/sync_provider.dart` | `POST /sync` *(Mocked in code currently)* |
+## Services / Repositories / DAOs
+
+| Class | File | What It Calls |
+|-------|------|---------------|
+| `AuthInterceptor` / `DioProvider` | `lib/core/network/dio_client.dart` | `POST /auth/refresh` |
+| `ExchangeRateDao` | `lib/core/database/daos/exchange_rate_dao.dart` | Local SQLite; `GET /exchange-rates/{date}`, `POST /exchange-rates`, `GET Frankfurter` |
+| `TransactionDao` | `lib/core/database/daos/transaction_dao.dart` | Local SQLite only |
+| `CategoryDao` | `lib/core/database/daos/category_dao.dart` | Local SQLite only |
+| `BudgetDao` | `lib/core/database/daos/budget_dao.dart` | Local SQLite only |
+| `SyncService` | `lib/core/sync/sync_service.dart` | `POST /sync/push`, `POST /sync/pull` |
+| `ImportNotifier` | `lib/features/import/providers/import_provider.dart` | Local SQLite only (mobile) |
+| `ExportProvider` | `lib/features/export/providers/export_provider.dart` | `GET /export/excel` |
+
+---
+
+## Providers Inventory (`lib/features/shared/providers/shared_providers.dart`)
+
+| Provider | Type | Purpose |
+|----------|------|---------|
+| `baseCurrencyProvider` | `NotifierProvider<BaseCurrencyNotifier, String>` | Current base currency (default AUD); persisted in `settings` table |
+| `viewCurrencyProvider` | `NotifierProvider<ViewCurrencyNotifier, String>` | Current view (display) currency; persisted in `settings` table |
+| `viewCurrencyRateProvider` | `FutureProvider<double>` | Today's base→view conversion rate via `getMostRecentOrFetch` |
+| `txViewAmountProvider` | `FutureProvider.family<double?, _TxViewKey>` | **[v5.1.0]** Per-transaction view amount using DB-only historical rate; returns `null` if no cached rate |
+| `transactionListProvider` | `FutureProvider<List<TransactionData>>` | All non-deleted transactions for current period |
+| `expenseListProvider` | `FutureProvider<List<TransactionData>>` | Expense-type transactions only |
+| `categoryListProvider` | `FutureProvider<List<CategoryData>>` | All visible categories |
+| `dashboardSummaryProvider` | `FutureProvider<DashboardSummary>` | Aggregated summary (totalSpent, totalIncome, netIncome) |
+| `selectedPeriodProvider` | `NotifierProvider<PeriodNotifier, Period>` | Currently selected time period |
+| `exchangeRateDaoProvider` | `Provider<ExchangeRateDao>` | DAO access for exchange rate operations |
+| `transactionDaoProvider` | `Provider<TransactionDao>` | DAO access for transaction operations |
+
+---
 
 ## Models Inventory
 
 | Model | File | Used As |
-|-------|------|---------|
-| `Expense` | `lib/data/models/expense.dart` | Response for `GET /expenses`, Body for `POST/PUT /expenses` |
-| `ExchangeRateResult` | `lib/features/transactions/repositories/exchange_rate_repository.dart` | Internal representation of rate responses |
-| `CurrencyPortfolio` | `lib/features/wallets/providers/wallet_providers.dart` | Internal dashboard model |
-| `DashboardSummary` | `lib/features/shared/providers/shared_providers.dart` | Internal UI model |
+|-------|------|---------| 
+| `TransactionData` | Generated by Drift | Core transaction row |
+| `CategoryData` | Generated by Drift | Category row |
+| `BudgetData` | Generated by Drift | Budget row |
+| `ExchangeRateData` | Generated by Drift | Cached exchange rate |
+| `DashboardSummary` | `lib/features/shared/providers/shared_providers.dart` | UI summary model (totalSpent, totalIncome, netIncome, topCategory) |
+| `CurrencyPortfolio` | `lib/features/wallets/providers/wallet_providers.dart` | Per-currency balance + value |
+| `ImportRow` | `lib/features/import/models/import_row.dart` | Parsed Excel row |
+| `_TxViewKey` (typedef) | `lib/features/shared/providers/shared_providers.dart` | Key type for `txViewAmountProvider.family` |
+
+---
+
+## Key Widgets
+
+| Widget | File | Purpose |
+|--------|------|---------|
+| `TransactionListTile` | `lib/features/shared/widgets/transaction_list_tile.dart` | List tile for any transaction type; uses `txViewAmountProvider` for view currency estimate |
+| `TransactionDetailSheet` | `lib/features/transactions/widgets/transaction_detail_sheet.dart` | Bottom sheet with full transaction info + view currency estimate |
+| `CategoryDonutChart` | `lib/features/home/widgets/category_donut_chart.dart` | Donut chart with `showViewCurrency` flag; home screen sets it `false` |
+| `DashboardSummaryCards` | `lib/features/home/widgets/dashboard_summary_cards.dart` | Summary cards: base currency primary, view currency secondary |
+
+---
 
 ## API Base URL
-`http://localhost:3000` (Injected via `.env` / `dio_client.dart`)
+
+`http://localhost:3000` (injected via `.env` / `flutter_dotenv`)
+
+---
 
 ## Endpoints Summary
 
-| Method | Path | Called From | Request Model | Response Model |
-|--------|------|-------------|---------------|----------------|
-| POST | `/auth/refresh` | Dio Interceptor | - | Anonymous JSON |
-| GET | `/expenses` | App Init (Legacy) | - | List<Expense> |
-| POST | `/expenses` | Create Transaction | Expense JSON | - |
-| PUT | `/expenses/:id` | Edit Transaction | Expense JSON | - |
-| DELETE | `/expenses/:id` | Delete Transaction | - | - |
-| GET | `/exchange-rates/{date}` | TransactionBottomSheet | URL Params | ExchangeRateResult (Map) |
-| POST | `/exchange-rates` | ExchangeRateRepository | Map | - |
-| GET | `https://api.frankfurter.app/...` | Wallet/Transaction | URL Params | Map |
+| Method | Path | Flutter Caller | Request Model | Response Model |
+|--------|------|----------------|---------------|----------------|
+| POST | `/auth/refresh` | Dio Interceptor | `{ refreshToken }` | `{ accessToken, refreshToken }` |
+| POST | `/sync/push` | `SyncService` | `{ records[], clientTimestamp }` | `{ synced, conflicts }` |
+| POST | `/sync/pull` | `SyncService` | `{ lastSyncTimestamp }` | `{ changes, serverTimestamp }` |
+| GET | `/transactions` | `SyncService` | Query params | `{ data[], total }` |
+| POST | `/transactions` | `SyncService` | `TransactionData` JSON | Created `TransactionData` |
+| PATCH | `/transactions/:id` | `SyncService` | Partial `TransactionData` | Updated `TransactionData` |
+| DELETE | `/transactions/:id` | `SyncService` | — | 204 No Content |
+| GET | `/exchange-rates/latest` | `ExchangeRateDao` | Query: `from`, `to` | `{ rate, date, estimated }` |
+| GET | `/exchange-rates/{date}` | `ExchangeRateDao` | Path + Query | `{ rate, date, estimated }` |
+| POST | `/exchange-rates` | `ExchangeRateDao` | `{ from, to, date, rate }` | 200 OK |
+| GET | `/export/excel` | `ExportProvider` | Query: `startDate`, `endDate` | `.xlsx` binary |
+| POST | `/import/transactions` | Web App only | `ImportTransactionsDto` | `{ success, importedCount }` |
+| GET | `https://api.frankfurter.app/latest` | `ExchangeRateDao` | Query: `from`, `to` | `{ rates: { [code]: number } }` |
+| GET | `https://api.frankfurter.app/{date}` | `ExchangeRateDao` | Path + Query | `{ rates: { [code]: number } }` |
+
+---
+
+## View Currency Display Rules (v5.1.0)
+
+| Context | Primary value | Secondary value |
+|---------|---------------|-----------------|
+| Transaction list tile | `originalCurrency originalAmount` | `≈ viewCurrency viewAmount` (via `txViewAmountProvider`; hidden if `null`) |
+| Transaction detail sheet | `originalCurrency originalAmount` | `≈ ± viewCurrency amount (1 base = X view)` |
+| Dashboard summary cards | `baseCurrency amount` (bold) | `≈ viewCurrency amount` (small; hidden if base == view) |
+| Wallets total card | `baseCurrency total` | `≈ viewCurrency total` (hidden if base == view) |
+| Donut chart — Home screen | `baseCurrency total` | *(none — `showViewCurrency: false`)* |
+| Donut chart — Reports/Detail | `baseCurrency total` | `≈ viewCurrency total` (when base ≠ view) |
+
+**Rate used for transaction tile**: historical cached rate at transaction date (DB-only, `getForDateOrRecent`). No network call, returns `null` if uncached → row hidden.
+
+**Rate used for summary totals**: today's rate via `viewCurrencyRateProvider` (`getMostRecentOrFetch`).

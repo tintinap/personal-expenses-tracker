@@ -25,6 +25,11 @@ export class CategoriesController {
     return this.categoriesService.findAll(req.user.userId);
   }
 
+  @Get(':id')
+  async findById(@Req() req: any, @Param('id') id: string) {
+    return this.categoriesService.findById(id, req.user.userId);
+  }
+
   @Post()
   async create(
     @Req() req: any,

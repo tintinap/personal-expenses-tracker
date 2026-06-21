@@ -41,7 +41,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
@@ -52,34 +52,114 @@ class AppDatabase extends _$AppDatabase {
         await _seedDefaultCategories();
         // Seed default settings
         await _seedDefaultSettings();
+        // Seed default budgets
+        await _seedDefaultBudgets();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          // Add parent_id column to categories table
+          await m.addColumn(categories, categories.parentId);
+        }
+        if (from < 3) {
+          await m.addColumn(categories, categories.iconCodePoint);
+          await _migrateCategoryIconsForExistingRows();
+        }
+        if (from < 4) {
+          await m.addColumn(budgets, budgets.scopeType);
+          await m.addColumn(budgets, budgets.categoryIds);
+          await m.addColumn(budgets, budgets.currency);
+          await m.addColumn(budgets, budgets.isRecurring);
+          await m.addColumn(budgets, budgets.notified75);
+          await m.addColumn(budgets, budgets.notified90);
+          
+          await customStatement(
+            "UPDATE budgets SET scope_type = 'all', currency = 'AUD' WHERE scope = 'global'",
+          );
+          await customStatement(
+            "UPDATE budgets SET scope_type = 'include', "
+            "category_ids = '[\"' || category_id || '\"]', currency = 'AUD' "
+            "WHERE scope = 'category'",
+          );
+        }
+        if (from < 5) {
+          // Schema ≤3 used `scope` / `category_id` / `notified_80`; v4 added parallel
+          // columns but left legacy columns in SQLite. Drift INSERTs omit legacy fields,
+          // so NOT NULL `scope` caused new budget inserts to fail on upgraded DBs.
+          await _dropLegacyBudgetColumnsIfPresent();
+        }
+        if (from < 6) {
+          await m.addColumn(budgets, budgets.name);
+        }
+        if (from < 7) {
+          await m.addColumn(transactions, transactions.isAggregate);
+        }
+        if (from < 8) {
+          await _seedDefaultBudgets();
+        }
       },
     );
   }
 
+  /// Best-effort: fresh installs never had these columns; older SQLite may lack DROP COLUMN.
+  Future<void> _dropLegacyBudgetColumnsIfPresent() async {
+    const legacy = ['scope', 'category_id', 'notified_80'];
+    for (final col in legacy) {
+      try {
+        await customStatement('ALTER TABLE budgets DROP COLUMN $col');
+      } catch (_) {}
+    }
+  }
+
   Future<void> _seedDefaultCategories() async {
-    final defaults = [
-      ('Food & dining', '#378ADD', 0),
-      ('Groceries', '#4CAF50', 1),
-      ('Transport', '#FF7043', 2),
-      ('Health & medical', '#E91E8C', 3),
-      ('Shopping & retail', '#9C27B0', 4),
-      ('Bills & utilities', '#009688', 5),
-      ('Entertainment', '#FFC107', 6),
-      ('Travel', '#FF8F00', 7),
-      ('Subscriptions', '#F44336', 8),
-      ('Education', '#455A64', 9),
-      ('Personal care', '#4FC3F7', 10),
-      ('Other / uncategorised', '#9E9E9E', 11),
+    // MaterialIcons code points (matches Icons.* in Flutter Material font).
+    final defaults = <(String name, String colour, int order, int iconCodePoint)>[
+      ('Food & dining', '#378ADD', 0, 0xe532), // restaurant
+      ('Groceries', '#4CAF50', 1, 0xe395), // local_grocery_store
+      ('Transport', '#FF7043', 2, 0xe1d7), // directions_car
+      ('Health & medical', '#E91E8C', 3, 0xe396), // local_hospital
+      ('Shopping & retail', '#9C27B0', 4, 0xe59a), // shopping_bag
+      ('Bills & utilities', '#009688', 5, 0xe50d), // receipt_long
+      ('Entertainment', '#FFC107', 6, 0xe40d), // movie
+      ('Travel', '#FF8F00', 7, 0xe297), // flight
+      ('Subscriptions', '#F44336', 8, 0xe618), // subscriptions
+      ('Education', '#455A64', 9, 0xe559), // school
+      ('Personal care', '#4FC3F7', 10, 0xe5d8), // spa
+      ('Other / uncategorised', '#9E9E9E', 11, 0xe148), // category
     ];
 
-    for (final (name, colour, order) in defaults) {
+    for (final (name, colour, order, iconCp) in defaults) {
       await into(categories).insert(CategoriesCompanion.insert(
         id: 'default-cat-$order',
         name: name,
         colourHex: colour,
+        iconCodePoint: Value(iconCp),
         sortOrder: order,
         isDefault: const Value(true),
       ));
+    }
+  }
+
+  /// Sets icons for seeded default categories when upgrading from schema before v3.
+  Future<void> _migrateCategoryIconsForExistingRows() async {
+    final defaults = <(String id, int iconCodePoint)>[
+      ('default-cat-0', 0xe532),
+      ('default-cat-1', 0xe395),
+      ('default-cat-2', 0xe1d7),
+      ('default-cat-3', 0xe396),
+      ('default-cat-4', 0xe59a),
+      ('default-cat-5', 0xe50d),
+      ('default-cat-6', 0xe40d),
+      ('default-cat-7', 0xe297),
+      ('default-cat-8', 0xe618),
+      ('default-cat-9', 0xe559),
+      ('default-cat-10', 0xe5d8),
+      ('default-cat-11', 0xe148),
+    ];
+    for (final (id, iconCp) in defaults) {
+      await customStatement(
+        'UPDATE categories SET icon_code_point = ? WHERE id = ?',
+        [iconCp, id],
+      );
     }
   }
 
@@ -97,6 +177,36 @@ class AppDatabase extends _$AppDatabase {
         key: entry.key,
         value: entry.value,
       ));
+    }
+  }
+
+  Future<void> _seedDefaultBudgets() async {
+    final now = DateTime.now();
+    final startOfYear = DateTime(now.year, 1, 1);
+    final endOfYear = DateTime(now.year, 12, 31, 23, 59, 59);
+    final baseCurrency = await getSetting('base_currency') ?? 'AUD';
+
+    final defaultBudgets = [
+      (id: 'default-budget-monthly', name: 'Monthly Budget', periodType: 'monthly'),
+      (id: 'default-budget-weekly', name: 'Weekly Budget', periodType: 'weekly'),
+      (id: 'default-budget-fortnightly', name: 'Fortnightly Budget', periodType: 'fortnightly'),
+    ];
+
+    for (final budget in defaultBudgets) {
+      await into(budgets).insert(
+        BudgetsCompanion.insert(
+          id: budget.id,
+          name: Value(budget.name),
+          scopeType: 'all',
+          currency: baseCurrency,
+          amountBase: 0.0,
+          periodType: budget.periodType,
+          isRecurring: const Value(true),
+          startDate: startOfYear,
+          endDate: Value(endOfYear),
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
     }
   }
 
@@ -141,6 +251,21 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> removeSyncItem(String id) async {
     await (delete(syncQueue)..where((t) => t.id.equals(id))).go();
+  }
+
+  // ── Maintenance ───────────────────────────────────────────
+
+  /// Wipes all local data and re-seeds default categories/settings.
+  /// Used during Account Deletion flow.
+  Future<void> clearAllData() async {
+    await transaction(() async {
+      for (final table in allTables) {
+        await delete(table).go();
+      }
+    });
+    await _seedDefaultCategories();
+    await _seedDefaultSettings();
+    await _seedDefaultBudgets();
   }
 }
 

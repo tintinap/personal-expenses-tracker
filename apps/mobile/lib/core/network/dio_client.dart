@@ -1,12 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// PRD §8 — Dio HTTP client with JWT interceptor and retry logic
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
-    // TODO: Configure from .env
-    baseUrl: 'http://localhost:3000',
+    baseUrl: dotenv.env['API_URL'] ?? 'http://localhost:3000',
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
     headers: {'Content-Type': 'application/json'},
@@ -20,10 +20,9 @@ final dioProvider = Provider<Dio>((ref) {
 
 /// JWT auth interceptor that adds Bearer token and handles refresh
 class AuthInterceptor extends Interceptor {
-  final Ref _ref;
   final _storage = const FlutterSecureStorage();
 
-  AuthInterceptor(this._ref);
+  AuthInterceptor(Ref ref);
 
   @override
   void onRequest(

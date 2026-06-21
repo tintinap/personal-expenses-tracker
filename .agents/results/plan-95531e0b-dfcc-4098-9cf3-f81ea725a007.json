@@ -1,0 +1,289 @@
+{
+  "sessionId": "95531e0b-dfcc-4098-9cf3-f81ea725a007",
+  "title": "Phase 1: Nav Restructure + Reports + Cleanup",
+  "designDoc": "docs/plans/phase1-nav-reports-cleanup-design.md",
+  "sourceExecPlan": "docs/exec-plans/active/remaining-tasks.md",
+  "createdAt": "2026-05-16T12:41:00+10:00",
+  "status": "approved",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Refactor ScaffoldWithNavBar to own AppBar + gear icon",
+      "agent": "mobile",
+      "priority": "P0",
+      "effort": "M",
+      "dependsOn": [],
+      "description": "ScaffoldWithNavBar takes ownership of the full Scaffold including AppBar. Add title resolution logic based on current route. Add gear icon (Icons.settings_outlined) to AppBar actions that navigates to /settings. Handle route-aware FAB: show budget add FAB on /budgets, transaction add FAB on all other tabs.",
+      "acceptanceCriteria": [
+        "Gear icon visible on all tab screens",
+        "Tapping gear navigates to Settings screen",
+        "Title resolves correctly: DailySpend, Wallets, Budgets, Reports",
+        "FAB on /budgets shows budget add, all others show transaction add"
+      ],
+      "files": [
+        "apps/mobile/lib/core/router/app_router.dart"
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Refactor child screens to body-only (Home, Wallets, Budgets)",
+      "agent": "mobile",
+      "priority": "P0",
+      "effort": "M",
+      "dependsOn": ["T1"],
+      "description": "Remove Scaffold and AppBar from HomeScreen, WalletsScreen, and BudgetsScreen. Each screen returns only its body content. Remove the account_circle icon from HomeScreen (replaced by shared gear icon). Move BudgetsScreen FAB logic to ScaffoldWithNavBar route-aware handling.",
+      "acceptanceCriteria": [
+        "All 3 screens render correctly without own Scaffold",
+        "No duplicate AppBars",
+        "HomeScreen no longer has account_circle icon",
+        "BudgetsScreen add-budget FAB still works via ScaffoldWithNavBar"
+      ],
+      "files": [
+        "apps/mobile/lib/features/home/screens/home_screen.dart",
+        "apps/mobile/lib/features/wallets/screens/wallets_screen.dart",
+        "apps/mobile/lib/features/budgets/screens/budgets_screen.dart"
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Add Reports route + nav tab",
+      "agent": "mobile",
+      "priority": "P0",
+      "effort": "S",
+      "dependsOn": ["T1"],
+      "description": "Add /reports GoRoute to ShellRoute at tab index 3. Add Reports _NavBarItem (icon: bar_chart) where Settings tab used to be. Update _calculateSelectedIndex to include reports index. Create minimal placeholder ReportsScreen (body-only widget) for initial wiring.",
+      "acceptanceCriteria": [
+        "Reports tab visible at index 3 in bottom nav",
+        "Tapping Reports tab navigates to /reports",
+        "Tab highlight works correctly",
+        "Placeholder screen renders"
+      ],
+      "files": [
+        "apps/mobile/lib/core/router/app_router.dart",
+        "apps/mobile/lib/features/reports/screens/reports_screen.dart"
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Move Settings to non-shell full-screen route",
+      "agent": "mobile",
+      "priority": "P0",
+      "effort": "S",
+      "dependsOn": ["T1"],
+      "description": "Remove /settings from ShellRoute children. Add /settings as a top-level GoRoute (non-shell) with /settings/categories as a child route. SettingsScreen keeps its own Scaffold + AppBar (with back button auto-provided by GoRouter). Remove Settings _NavBarItem from bottom nav. Update _calculateSelectedIndex to remove settings index.",
+      "acceptanceCriteria": [
+        "Settings no longer in bottom nav",
+        "Settings accessible via gear icon in AppBar",
+        "Settings renders full-screen with back button",
+        "/settings/categories still navigable and functional"
+      ],
+      "files": [
+        "apps/mobile/lib/core/router/app_router.dart",
+        "apps/mobile/lib/features/settings/screens/settings_screen.dart"
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "Create Reports providers (reports_providers.dart)",
+      "agent": "mobile",
+      "priority": "P0",
+      "effort": "M",
+      "dependsOn": [],
+      "description": "Create features/reports/providers/reports_providers.dart with 5 providers: previousPeriodTransactionsProvider (computes previous period dates from selectedPeriodProvider, streams transactions), dailySpendAggregateProvider (Map<DateTime, double> from expenses in base currency), categorySpendProvider (List<CategorySpend> with name, colour, amount, percentage), trendSpendProvider (List<TrendPoint> cumulative daily spend), periodComparisonProvider (PeriodComparison with currentTotal, previousTotal, absoluteDiff, percentDiff).",
+      "acceptanceCriteria": [
+        "All 5 providers return correct data for current period",
+        "previousPeriodTransactionsProvider computes correct previous period",
+        "categorySpendProvider sorted by amount descending",
+        "trendSpendProvider returns cumulative data points",
+        "periodComparisonProvider handles empty previous period gracefully"
+      ],
+      "files": [
+        "apps/mobile/lib/features/reports/providers/reports_providers.dart"
+      ]
+    },
+    {
+      "id": "T6",
+      "title": "Build SpendBarChart widget",
+      "agent": "mobile",
+      "priority": "P1",
+      "effort": "M",
+      "dependsOn": ["T5"],
+      "description": "Create features/reports/widgets/spend_bar_chart.dart using fl_chart BarChart. X-axis: days within selected period (auto-label every Nth day). Y-axis: spend amount in base currency. Bars colored with theme.colorScheme.primary. Touch: show tooltip with exact date + amount.",
+      "acceptanceCriteria": [
+        "Bar chart renders with one bar per day",
+        "X-axis labels auto-space based on period length",
+        "Touch tooltip shows date + amount",
+        "Empty state handled gracefully"
+      ],
+      "files": [
+        "apps/mobile/lib/features/reports/widgets/spend_bar_chart.dart"
+      ]
+    },
+    {
+      "id": "T7",
+      "title": "Build SpendTrendLineChart widget",
+      "agent": "mobile",
+      "priority": "P1",
+      "effort": "M",
+      "dependsOn": ["T5"],
+      "description": "Create features/reports/widgets/spend_trend_line_chart.dart using fl_chart LineChart. Single smooth line showing cumulative spend over time. Gradient fill below the line. Touch: show tooltip with date + cumulative amount.",
+      "acceptanceCriteria": [
+        "Line chart renders cumulative spend trend",
+        "Gradient fill below line renders correctly",
+        "Touch tooltip shows date + cumulative total",
+        "Empty state handled gracefully"
+      ],
+      "files": [
+        "apps/mobile/lib/features/reports/widgets/spend_trend_line_chart.dart"
+      ]
+    },
+    {
+      "id": "T8",
+      "title": "Build PeriodComparisonCard widget",
+      "agent": "mobile",
+      "priority": "P1",
+      "effort": "S",
+      "dependsOn": ["T5"],
+      "description": "Create features/reports/widgets/period_comparison_card.dart. Two side-by-side cards showing 'This Period' and 'Previous Period' totals. Below: row showing absolute difference and % change. Green = spent less (with down arrow), Red = spent more (with up arrow). Handle edge case: no previous data → show 'No data'.",
+      "acceptanceCriteria": [
+        "Two cards display current and previous period totals",
+        "Delta row shows correct absolute and percentage difference",
+        "Color coding: green for decrease, red for increase",
+        "Handles missing previous period data"
+      ],
+      "files": [
+        "apps/mobile/lib/features/reports/widgets/period_comparison_card.dart"
+      ]
+    },
+    {
+      "id": "T9",
+      "title": "Build CategorySpendList widget",
+      "agent": "mobile",
+      "priority": "P1",
+      "effort": "S",
+      "dependsOn": ["T5"],
+      "description": "Create features/reports/widgets/category_spend_list.dart. Each row: colored circle + category name + amount + percentage + linear progress indicator. Sorted by amount descending. Tapping a row opens CategoryTransactionsSheet (reused from home). Empty state if no categories.",
+      "acceptanceCriteria": [
+        "Categories listed sorted by spend amount descending",
+        "Each row shows colored dot, name, amount, percentage",
+        "Linear progress bar shows % of total",
+        "Tapping a category opens CategoryTransactionsSheet",
+        "Empty state handled"
+      ],
+      "files": [
+        "apps/mobile/lib/features/reports/widgets/category_spend_list.dart"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Assemble ReportsScreen with all widgets",
+      "agent": "mobile",
+      "priority": "P1",
+      "effort": "M",
+      "dependsOn": ["T3", "T5", "T6", "T7", "T8", "T9"],
+      "description": "Replace the placeholder ReportsScreen with the full implementation. Body-only widget (no Scaffold) using CustomScrollView with slivers: PeriodSelector, PeriodComparisonCard, CategoryDonutChart (reused from home), SpendBarChart, SpendTrendLineChart, CategorySpendList, SizedBox(80) for FAB clearance.",
+      "acceptanceCriteria": [
+        "All widgets render in correct order",
+        "PeriodSelector controls all charts",
+        "CategoryDonutChart reused and functional with drill-down",
+        "Scrolling is smooth with no overflow",
+        "FAB clearance at bottom"
+      ],
+      "files": [
+        "apps/mobile/lib/features/reports/screens/reports_screen.dart"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Delete orphan files + empty directories",
+      "agent": "mobile",
+      "priority": "P2",
+      "effort": "S",
+      "dependsOn": [],
+      "description": "Delete 7 orphan files: core/providers/database_provider.dart, data/models/expense.dart, data/models/category.dart, data/database/database_service.dart, services/export_helper_stub.dart, services/export_helper_web.dart, services/export_helper_native.dart. Remove empty directories: data/models/, data/database/, data/, services/, providers/. Do NOT delete features/budgets/utils/mock_data.dart.",
+      "acceptanceCriteria": [
+        "All 7 files deleted",
+        "All 5 empty directories removed",
+        "mock_data.dart still exists",
+        "No broken imports (verified via build)"
+      ],
+      "files": [
+        "apps/mobile/lib/core/providers/database_provider.dart",
+        "apps/mobile/lib/data/models/expense.dart",
+        "apps/mobile/lib/data/models/category.dart",
+        "apps/mobile/lib/data/database/database_service.dart",
+        "apps/mobile/lib/services/export_helper_stub.dart",
+        "apps/mobile/lib/services/export_helper_web.dart",
+        "apps/mobile/lib/services/export_helper_native.dart"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Remove _PlaceholderScreen + /expenses/:id route",
+      "agent": "mobile",
+      "priority": "P2",
+      "effort": "S",
+      "dependsOn": ["T4"],
+      "description": "Delete the _PlaceholderScreen class and the /expenses/:id GoRoute from app_router.dart. These are dead code — the placeholder was never used by real features.",
+      "acceptanceCriteria": [
+        "_PlaceholderScreen class removed",
+        "/expenses/:id route removed",
+        "No remaining references to PlaceholderScreen"
+      ],
+      "files": [
+        "apps/mobile/lib/core/router/app_router.dart"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Remove OptionalAuthGuard from backend",
+      "agent": "backend",
+      "priority": "P2",
+      "effort": "S",
+      "dependsOn": [],
+      "description": "Remove the OptionalAuthGuard class from apps/api/src/auth/guards/jwt-auth.guard.ts (lines 7-18). Keep JwtAuthGuard intact. Verified: OptionalAuthGuard is never imported or used anywhere else.",
+      "acceptanceCriteria": [
+        "OptionalAuthGuard class removed from jwt-auth.guard.ts",
+        "JwtAuthGuard still functional",
+        "No broken imports in backend"
+      ],
+      "files": [
+        "apps/api/src/auth/guards/jwt-auth.guard.ts"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Update remaining-tasks.md — mark Phase 1 complete",
+      "agent": "mobile",
+      "priority": "P3",
+      "effort": "S",
+      "dependsOn": ["T10", "T11", "T12", "T13"],
+      "description": "Update docs/exec-plans/active/remaining-tasks.md to mark Phase 1 (T1-T4) as complete. Change '[ ]' to '[x]' for the Phase 1 header and all 4 tasks (T1: Move Settings to gear icon, T2: Add Reports tab + screen, T3: Remove orphan files, T4: Remove unused OptionalAuthGuard).",
+      "acceptanceCriteria": [
+        "Phase 1 header marked [x]",
+        "All 4 Phase 1 tasks marked [x]",
+        "All sub-items under each task marked [x]"
+      ],
+      "files": [
+        "docs/exec-plans/active/remaining-tasks.md"
+      ]
+    }
+  ],
+  "priorityTiers": {
+    "P0": ["T1", "T2", "T3", "T4", "T5"],
+    "P1": ["T6", "T7", "T8", "T9", "T10"],
+    "P2": ["T11", "T12", "T13"],
+    "P3": ["T14"]
+  },
+  "executionOrder": [
+    {"parallel": ["T1", "T5", "T11", "T13"]},
+    {"parallel": ["T2", "T3", "T4", "T6", "T7", "T8", "T9"]},
+    {"sequential": ["T12"]},
+    {"sequential": ["T10"]},
+    {"sequential": ["T14"]}
+  ],
+  "agentAssignments": {
+    "mobile": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T14"],
+    "backend": ["T13"]
+  }
+}

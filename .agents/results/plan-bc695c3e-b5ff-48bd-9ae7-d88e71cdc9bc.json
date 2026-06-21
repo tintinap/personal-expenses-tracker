@@ -1,0 +1,105 @@
+{
+  "project": "Budgets Feature (Mobile)",
+  "goals": "Implement budget feature with flexible scope, per-currency tracking, auto-rolling periods, local notifications, and budget-aware transaction entry.",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Dependencies & Schema Update",
+      "agent": "mobile",
+      "priority": "P0",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Add flutter_local_notifications to pubspec.yaml",
+        "Update Budgets table schema in tables.dart to include scopeType, categoryIds, currency, isRecurring, notified75, notified90, notified100",
+        "Implement Migration v4 in database.dart",
+        "Verify Drift database builds successfully"
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Transaction DAO Updates",
+      "agent": "mobile",
+      "priority": "P0",
+      "dependencies": ["T1"],
+      "acceptanceCriteria": [
+        "Add sumExpensesByCurrency method to TransactionDao",
+        "Add sumExpensesByCurrencyAndCategories method",
+        "Add sumExpensesByCurrencyExcludingCategories method"
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Budget Period Calculator",
+      "agent": "mobile",
+      "priority": "P0",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Create BudgetPeriodCalculator utility class",
+        "Implement currentPeriod() logic, respecting 14-day rule for fortnightly",
+        "Implement pastPeriods() and isExpired()",
+        "Add unit tests for the calculator logic"
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "State Management & Providers",
+      "agent": "mobile",
+      "priority": "P0",
+      "dependencies": ["T1", "T2", "T3"],
+      "acceptanceCriteria": [
+        "Refactor BudgetProgress model to include currency, isExpired, and category names",
+        "Update budgetProgressListProvider to use new scope logic and evaluate notification thresholds",
+        "Create activeBudgetWarningsProvider",
+        "Create budgetHistoryProvider"
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "Notification Service Setup",
+      "agent": "mobile",
+      "priority": "P1",
+      "dependencies": ["T4"],
+      "acceptanceCriteria": [
+        "Set up flutter_local_notifications plugin",
+        "Configure budget_alerts channel",
+        "Wire up notification triggering logic from budgetProgressListProvider"
+      ]
+    },
+    {
+      "id": "T6",
+      "title": "Budget Bottom Sheet (Create/Edit)",
+      "agent": "mobile",
+      "priority": "P1",
+      "dependencies": ["T4"],
+      "acceptanceCriteria": [
+        "Create BudgetBottomSheet UI with flexible scope selector (All, Include, Exclude)",
+        "Add currency, amount, period type, and date pickers",
+        "Wire up save logic to BudgetDao",
+        "Update BudgetsScreen FAB to open bottom sheet"
+      ]
+    },
+    {
+      "id": "T7",
+      "title": "Budget Details & History UI",
+      "agent": "mobile",
+      "priority": "P1",
+      "dependencies": ["T4"],
+      "acceptanceCriteria": [
+        "Update BudgetDetailScreen with edit and delete functionality",
+        "Add 'View History' button for recurring budgets",
+        "Create BudgetHistoryScreen with scrollable list of past periods"
+      ]
+    },
+    {
+      "id": "T8",
+      "title": "Budget-aware Transaction Entry",
+      "agent": "mobile",
+      "priority": "P1",
+      "dependencies": ["T4"],
+      "acceptanceCriteria": [
+        "Update TransactionBottomSheet to consume activeBudgetWarningsProvider",
+        "Display inline warning when matching budget is >=90% used"
+      ]
+    }
+  ]
+}

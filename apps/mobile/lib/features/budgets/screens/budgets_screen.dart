@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../shared/providers/shared_providers.dart';
+import '../../../core/providers/database_providers.dart';
 import '../providers/budget_providers.dart';
 import '../widgets/budget_card.dart';
 
@@ -12,14 +12,9 @@ class BudgetsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final progressListAsync = ref.watch(budgetProgressListProvider);
-    final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Budgets'),
-      ),
-      body: progressListAsync.when(
+    return progressListAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (progressList) {
@@ -28,11 +23,11 @@ class BudgetsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.savings_outlined, size: 64, color: theme.colorScheme.surfaceVariant),
+                  Icon(Icons.savings_outlined, size: 64, color: theme.colorScheme.surfaceContainerHighest),
                   const SizedBox(height: 16),
                   Text('No active budgets', style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 8),
-                  Text('Tap the + button to create one', style: theme.textTheme.bodyMedium),
+                  Text('Tap the + button in the top bar to create one', style: theme.textTheme.bodyMedium),
                 ],
               ),
             );
@@ -56,8 +51,8 @@ class BudgetsScreen extends ConsumerWidget {
                     (context, index) {
                       final prog = progressList[index];
                       String? catName;
-                      if (prog.budget.scope == 'category') {
-                        catName = categories.where((c) => c.id == prog.budget.categoryId).firstOrNull?.name;
+                      if (prog.budget.scopeType == 'include') {
+                        catName = prog.categoryNames.join(', ');
                       }
 
                       return Padding(
@@ -66,6 +61,9 @@ class BudgetsScreen extends ConsumerWidget {
                           progress: prog,
                           categoryName: catName,
                           onTap: () => context.go('/budgets/${prog.budget.id}'),
+                          onDelete: () => ref
+                              .read(budgetDaoProvider)
+                              .deleteBudget(prog.budget.id),
                         ),
                       );
                     },
@@ -77,13 +75,6 @@ class BudgetsScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Open Add Budget bottom sheet
-        },
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }

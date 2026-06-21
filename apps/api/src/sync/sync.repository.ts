@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class SyncRepository {
@@ -51,7 +52,7 @@ export class SyncRepository {
     });
   }
 
-  async logConflict(data: any) {
+  async logConflict(data: Prisma.ConflictLogUncheckedCreateInput) {
     return this.prisma.conflictLog.create({ data });
   }
 
@@ -95,5 +96,13 @@ export class SyncRepository {
 
   async deleteBudget(recordId: string) {
     return this.prisma.budget.delete({ where: { id: recordId } });
+  }
+
+  async upsertCurrencyBalance(userId: string, currency: string, delta: number) {
+    await this.prisma.currencyBalance.upsert({
+      where: { userId_currency: { userId, currency } },
+      create: { userId, currency, balance: delta },
+      update: { balance: { increment: delta } },
+    });
   }
 }

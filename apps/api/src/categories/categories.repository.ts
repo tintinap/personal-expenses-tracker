@@ -13,6 +13,12 @@ export class CategoriesRepository {
     });
   }
 
+  async findById(id: string, userId: string): Promise<Category | null> {
+    return this.prisma.category.findFirst({
+      where: { id, userId },
+    });
+  }
+
   async getMaxSortOrder(userId: string): Promise<number | null> {
     const maxSort = await this.prisma.category.aggregate({
       where: { userId },

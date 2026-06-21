@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 
-import '../../../core/database/database.dart';
-import '../../../core/providers/database_providers.dart';
 import '../../shared/providers/shared_providers.dart';
 import '../../shared/widgets/period_selector.dart';
+import '../../shared/widgets/transaction_list_tile.dart';
 import '../widgets/dashboard_summary_cards.dart';
 import '../widgets/running_balance_chips.dart';
 import '../widgets/category_donut_chart.dart';
-import '../../transactions/widgets/transaction_bottom_sheet.dart';
+import '../widgets/category_transactions_sheet.dart';
 import '../../auth/widgets/sign_in_banner.dart';
+
 
 /// PRD §6 — Home (Dashboard) Screen
 class HomeScreen extends ConsumerWidget {
@@ -21,21 +21,11 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionListProvider);
+    final baseCurrency = ref.watch(baseCurrencyProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('DailySpend'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle),
-            onPressed: () {
-              context.go('/settings');
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
+    return SlidableAutoCloseBehavior(
+        child: RefreshIndicator(
         onRefresh: () async {
           // In a real app we might trigger a background sync here
           ref.invalidate(transactionListProvider);
@@ -59,23 +49,26 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
 
-            // Mini Dashboard Chart (Tappable)
+            // Mini Dashboard Chart — slice taps drill into transactions,
+            // tapping the title row navigates to the full dashboard.
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: InkWell(
-                  onTap: () => context.go('/dashboard-detail'),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Card(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    elevation: 0,
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
+                child: Card(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  elevation: 0,
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      InkWell(
+                        onTap: () => context.go('/dashboard-detail'),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
@@ -84,18 +77,29 @@ class HomeScreen extends ConsumerWidget {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                              Icon(
+                                Icons.chevron_right,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          // Making it miniature
-                          const SizedBox(
-                            height: 150,
-                            child: CategoryDonutChart(),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: SizedBox(
+                          height: 150,
+                          child: CategoryDonutChart(
+                            showViewCurrency: false,
+                            onSliceTap: (parentId) =>
+                                CategoryTransactionsSheet.show(
+                              context,
+                              parentCategoryId: parentId,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -151,11 +155,16 @@ class HomeScreen extends ConsumerWidget {
                 final sortedTransactions = List.of(transactions)
                   ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
 
+                // Filter out exchange_in — the exchange_out tile renders both sides
+                final filtered = sortedTransactions
+                    .where((tx) => tx.transactionType != 'currency_exchange_in')
+                    .toList();
+
                 // Group transactions by date
                 final listItems = [];
                 String? lastDateStr;
                 
-                for (final tx in sortedTransactions) {
+                for (final tx in filtered) {
                   final dateStr = DateFormat.yMMMd().format(tx.transactionDate);
                   if (dateStr != lastDateStr) {
                     listItems.add(dateStr); // Add date header
@@ -194,80 +203,7 @@ class HomeScreen extends ConsumerWidget {
                       }
                       
                       final tx = item;
-                      final isIncome = tx.transactionType == 'currency_income' || 
-                                       tx.transactionType == 'currency_exchange_in';
-                      final color = isIncome ? Colors.green : theme.textTheme.bodyLarge?.color;
-                      final prefix = isIncome ? '+' : '-';
-                      
-                      return Dismissible(
-                        key: ValueKey(tx.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20.0),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        confirmDismiss: (direction) async {
-                          return await showDialog<bool>(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('Delete Transaction'),
-                                content: const Text('Are you sure you want to delete this transaction?'),
-                                actions: <Widget>[
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(true),
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
-                        onDismissed: (direction) async {
-                          final dao = ref.read(transactionDaoProvider);
-                          final db = ref.read(databaseProvider);
-                          await dao.softDelete(tx.id);
-                          await db.addToSyncQueue(
-                            id: const Uuid().v4(),
-                            recordType: 'transaction',
-                            recordId: tx.id,
-                            operation: 'delete',
-                            payload: '{}',
-                          );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Transaction deleted')),
-                            );
-                          }
-                        },
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: theme.colorScheme.primaryContainer,
-                            child: Icon(
-                              isIncome ? Icons.arrow_downward : Icons.shopping_bag,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          title: Text(tx.note?.isNotEmpty == true ? tx.note! : tx.transactionType),
-                          subtitle: Text(DateFormat.jm().format(tx.transactionDate)),
-                          trailing: Text(
-                            '$prefix ${tx.originalCurrency} ${tx.originalAmount.toStringAsFixed(2)}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          onTap: () {
-                            TransactionBottomSheet.show(context, transaction: tx);
-                          },
-                        ),
-                      );
+                      return TransactionListTile(transaction: tx);
                     },
                     childCount: listItems.length,
                   ),

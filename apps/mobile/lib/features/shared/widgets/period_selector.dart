@@ -36,12 +36,6 @@ class PeriodSelector extends ConsumerWidget {
     final notifier = ref.read(selectedPeriodProvider.notifier);
     final theme = Theme.of(context);
 
-    // Disable next button if 'to' date is today or in the future
-    final isNextDisabled = periodState.to.isAfter(DateTime.now()) ||
-        periodState.to.day == DateTime.now().day &&
-            periodState.to.month == DateTime.now().month &&
-            periodState.to.year == DateTime.now().year;
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -84,9 +78,7 @@ class PeriodSelector extends ConsumerWidget {
                   onTap: () async {
                     if (periodState.type == PeriodType.custom) return;
 
-                    final initial = periodState.from.isAfter(DateTime.now()) 
-                        ? DateTime.now() 
-                        : periodState.from;
+                    final initial = periodState.from;
 
                     final pickedDate = await showDialog<DateTime>(
                       context: context,
@@ -102,7 +94,7 @@ class PeriodSelector extends ConsumerWidget {
                                   child: CalendarDatePicker(
                                     initialDate: initial,
                                     firstDate: DateTime(2000),
-                                    lastDate: DateTime.now(),
+                                    lastDate: DateTime(2100),
                                     onDateChanged: (date) {
                                       Navigator.pop(context, date);
                                     },
@@ -161,7 +153,7 @@ class PeriodSelector extends ConsumerWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
-                onPressed: isNextDisabled ? null : () => notifier.next(),
+                onPressed: () => notifier.next(),
                 tooltip: 'Next period',
               ),
             ],

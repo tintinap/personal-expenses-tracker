@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/period_selector.dart';
 import '../../shared/providers/shared_providers.dart';
 import '../widgets/category_donut_chart.dart';
+import '../widgets/category_transactions_sheet.dart';
 
 class DashboardDetailScreen extends ConsumerStatefulWidget {
   const DashboardDetailScreen({super.key});
@@ -19,6 +20,8 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final baseCurrency = ref.watch(baseCurrencyProvider);
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+    final viewRate = ref.watch(viewCurrencyRateProvider).valueOrNull ?? 1.0;
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
     final expenses = ref.watch(expenseListProvider);
     final transactions = ref.watch(transactionListProvider).valueOrNull ?? [];
@@ -44,16 +47,14 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Builder(
                 builder: (context) {
-                  // Filtering strictly to the user's base currency because foreign transactions currently have an un-converted amountBase in the local DB.
                   final filteredExpenses = expenses.where((e) => 
-                      !_excludedCategoryIds.contains(e.categoryId) && 
-                      e.originalCurrency == baseCurrency
+                      !_excludedCategoryIds.contains(e.categoryId)
                   );
-                  final totalSpent = filteredExpenses.fold(0.0, (sum, e) => sum + e.originalAmount.abs());
+                  final totalSpent = filteredExpenses.fold(0.0, (sum, e) => sum + e.amountBase.abs());
                   
                   final totalIncome = transactions
-                      .where((t) => (t.transactionType == 'currency_income' || t.transactionType == 'currency_exchange_in') && t.originalCurrency == baseCurrency)
-                      .fold(0.0, (sum, t) => sum + t.originalAmount.abs());
+                      .where((t) => t.transactionType == 'currency_income')
+                      .fold(0.0, (sum, t) => sum + t.amountBase.abs());
                       
                   final netIncome = totalIncome - totalSpent;
 
@@ -87,6 +88,9 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
                               '${filteredExpenses.length} transactions',
                               theme.colorScheme.primaryContainer,
                               theme.colorScheme.onPrimaryContainer,
+                              secondaryValue: baseCurrency != viewCurrency
+                                  ? '≈ $viewCurrency ${(totalSpent * viewRate).toStringAsFixed(2)}'
+                                  : null,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -98,6 +102,9 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
                               'Total Net Flow',
                               theme.colorScheme.tertiaryContainer,
                               theme.colorScheme.onTertiaryContainer,
+                              secondaryValue: baseCurrency != viewCurrency
+                                  ? '≈ $viewCurrency ${(netIncome * viewRate).toStringAsFixed(2)}'
+                                  : null,
                             ),
                           ),
                         ],
@@ -110,6 +117,9 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
                         '$baseCurrency ${maxAmount.toStringAsFixed(2)} spent',
                         theme.colorScheme.secondaryContainer,
                         theme.colorScheme.onSecondaryContainer,
+                        secondaryValue: baseCurrency != viewCurrency && maxAmount > 0
+                            ? '≈ $viewCurrency ${(maxAmount * viewRate).toStringAsFixed(2)}'
+                            : null,
                         isFullWidth: true,
                       ),
                     ],
@@ -136,7 +146,15 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      CategoryDonutChart(excludedCategoryIds: _excludedCategoryIds),
+                      CategoryDonutChart(
+                        showViewCurrency: true,
+                        excludedCategoryIds: _excludedCategoryIds,
+                        onSliceTap: (parentId) =>
+                            CategoryTransactionsSheet.show(
+                          context,
+                          parentCategoryId: parentId,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -218,7 +236,16 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, String title, String value, String subtitle, Color bgColor, Color textColor, {bool isFullWidth = false}) {
+  Widget _buildSummaryCard(
+    BuildContext context, 
+    String title, 
+    String value, 
+    String subtitle, 
+    Color bgColor, 
+    Color textColor, {
+    String? secondaryValue,
+    bool isFullWidth = false,
+  }) {
     final theme = Theme.of(context);
     return Container(
       width: isFullWidth ? double.infinity : null,
@@ -237,15 +264,30 @@ class _DashboardDetailScreenState extends ConsumerState<DashboardDetailScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: textColor,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: textColor,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
+          if (secondaryValue != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              secondaryValue,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: textColor.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
             subtitle,

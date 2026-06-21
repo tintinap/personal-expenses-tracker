@@ -67,7 +67,7 @@ The **base currency** is user-configurable (default: **AUD**). All stored amount
 |---|---|
 | Time to log one expense | < 10 seconds |
 | Offline entry → sync on reconnect | 100% of pending records synced |
-| Budget alert delivery | Fires once at 80%, once at 100% per period |
+| Budget alert delivery | Fires once at 75%, once at 90%, once at 100% per period |
 | Google Sheet write latency (online) | < 5 seconds after sync to backend |
 | App cold start (mobile) | < 2 seconds on mid-range device |
 | Web page load (initial) | < 3 seconds |
@@ -247,17 +247,19 @@ expense_app/
 
 ### Navigation structure (mobile — go_router)
 
-Bottom navigation bar with 5 tabs using `ShellRoute`. Persists across the app. Hidden only when add/edit sheets are open.
+Bottom navigation bar with 4 tabs using `ShellRoute` and a notched center FAB. Persists across the app. Hidden only when add/edit sheets are open.
 
 | Tab index | Label | Icon | Route |
 |---|---|---|---|
 | 0 | Home | `home_outlined` | `/` |
 | 1 | Wallets | `account_balance_wallet_outlined` | `/wallets` |
-| 2 | Reports | `bar_chart` | `/reports` |
-| 3 | Budgets | `savings_outlined` | `/budgets` |
-| 4 | Settings | `settings_outlined` | `/settings` |
+| — | *(FAB notch)* | `add` | *(opens Add Transaction sheet)* |
+| 2 | Budgets | `savings_outlined` | `/budgets` |
+| 3 | Reports | `bar_chart` | `/reports` |
 
-A floating `+` FAB overlays all five tabs and opens the Add Expense bottom sheet.
+A floating `+` FAB sits in the centre notch of the `BottomAppBar` and opens the Add Transaction bottom sheet.
+
+**Settings access:** A gear icon (`settings_outlined`) in the **top-right corner of the AppBar** on all primary screens provides access to Settings. Settings is **not** a bottom navigation tab.
 
 ### Navigation structure (web — Next.js App Router)
 
@@ -288,11 +290,13 @@ Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four secti
 - "Save" button — disabled until Amount and Category are filled
 - Shows converted base currency equivalent below amount field in real time
 
-#### Expense Detail (`/expenses/:id`)
-- Read-only view of all expense fields
-- Edit and Delete buttons
-- Shows sync status badge (`pending` / `synced`) — mobile only
-- Shows whether exchange rate was estimated (offline)
+#### Transaction Detail (bottom sheet — tap any row in the transaction list)
+- Opened by tapping a transaction row in any list (Home, Currency Detail, Reports, etc.)
+- Shows all transaction fields in a read-only detail view inside a bottom sheet
+- Edit and Delete action buttons at the bottom
+- **Sync status badge** (`pending` / `synced` / `conflict`) — mobile only, shown prominently near the top
+- Shows whether exchange rate was estimated (offline) with an "Estimated rate" label
+- For exchange transactions: shows both sides of the linked pair
 
 #### Reports (`/reports`)
 - Same period selector as Home
@@ -310,16 +314,16 @@ Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four secti
 
 #### Budget Detail (`/budgets/:id`)
 - Budget config (editable inline or via edit sheet)
-- Full progress breakdown
-- History of alerts fired this cycle
+- Full progress breakdown (percentage, spent, remaining, progress bar)
+- Configuration section: period mode, recurring toggle, scope, categories, current period dates
+- **Period history** (recurring budgets only): inline scrollable list of all past completed periods showing date range, amount spent, limit, and percentage — most recent first
 
-#### Settings (`/settings`)
+#### Settings (`/settings` — accessed via gear icon in AppBar, not bottom nav)
 - Account section: sign-in status (Google or Apple), sign out, delete account
 - Google Sheets section: connect/disconnect (only available for Google accounts), linked sheet name
 - Export section: "Export as Excel (.xlsx)" button — available to all signed-in users and local-mode users
 - Preferences: base currency picker (default: AUD, changeable to any supported currency), view currency toggle, dark mode toggle
 - Categories: manage default + custom categories
-- Sync status: last synced timestamp, manual sync trigger (mobile only)
 - About: version, licenses
 
 #### Currency Wallets (`/wallets`)
@@ -346,10 +350,12 @@ Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four secti
 - Each row shows: transaction type icon, amount, note, date
 
 #### Category Management (`/settings/categories`)
-- List of all categories (default + custom)
+- List of all categories (default + custom), grouped hierarchically: parent categories with their sub-categories indented below
 - Toggle visibility (hide/show)
-- Tap to rename or change colour
-- "+ Add category" at bottom (unlimited)
+- Tap to edit (rename, change colour, or assign/change parent category)
+- "+ Add category" at bottom (unlimited) — can create a top-level category or a sub-category under an existing parent
+- Sub-categories are limited to **1 level deep** — a sub-category cannot have its own children
+- Cannot delete a parent category that has sub-categories — must reassign or delete children first
 - Cannot delete a category with associated expenses — must reassign first
 - Hidden categories do not appear in the add/edit expense picker
 
@@ -454,8 +460,7 @@ src/auth/
 │   ├── apple.strategy.ts      # PassportStrategy(Strategy, 'apple')
 │   └── jwt.strategy.ts        # PassportStrategy(Strategy, 'jwt')
 ├── guards/
-│   ├── jwt-auth.guard.ts      # Protects authenticated routes
-│   └── optional-auth.guard.ts # Allows unauthenticated access (for local mode data on web)
+│   └── jwt-auth.guard.ts      # Protects authenticated routes (JwtAuthGuard)
 └── dto/
     └── auth-response.dto.ts   # { accessToken, refreshToken, user }
 ```
@@ -572,18 +577,31 @@ No blocking gate — the export buttons are immediately below the banner.
 - Users can rename any default or custom category — renames propagate to all historical expenses
 - Users can change a category's colour at any time
 - Users can create custom categories with any name and colour — **no limit on count**
+- Users can create **sub-categories** under any top-level (parent) category — limited to **1 level deep**
+- Transactions can be assigned to either a parent category or a sub-category
+- Sub-category expenses are **aggregated under the parent** in charts and dashboard summaries
+- The transaction entry dropdown shows the hierarchy clearly (e.g. parent in bold, sub-categories indented with "— " prefix)
 - Users can hide categories (removed from pickers, still shown in reports/history)
+- A parent category **cannot be deleted** if it has active sub-categories — user must reassign or delete children first
 - Categories with associated expenses **cannot be deleted** — user must reassign expenses to another category first
+- A parent category **cannot be demoted** to a sub-category while it has children
 - Hidden categories do not appear in the add/edit expense picker
 
 ### Acceptance criteria
 
 - [ ] All 12 default categories present on first launch
 - [ ] User can create a custom category with name and colour
+- [ ] User can create a sub-category under any top-level parent category
+- [ ] Sub-category depth is enforced to 1 level (cannot nest sub-sub-categories)
+- [ ] Transaction entry dropdown shows hierarchical labels (parent bold, children indented)
+- [ ] Donut chart and dashboard summary aggregate sub-category expenses under their parent
 - [ ] Renaming a category updates all historical expenses retroactively
 - [ ] Hiding a category removes it from pickers but not from reports
 - [ ] Attempting to delete a category with expenses shows a "reassign first" dialog
-- [ ] Categories sync between mobile and web via NestJS API
+- [ ] Attempting to delete a parent with sub-categories shows a "remove children first" dialog
+- [ ] A parent category cannot be made a sub-category while it has children
+- [ ] Categories (including parentId) sync between mobile and web via NestJS API
+- [ ] Backend validates parentId references and enforces 1-level depth on sync
 
 ---
 
@@ -919,58 +937,122 @@ Currency income and exchange events mirror to **dedicated tabs** (handled by Nes
 
 ## 13. Budget alerts
 
-### Period types
+### Per-currency budgets
 
-**Repeating cadence:**
+Each budget tracks spending in **one user-chosen currency**. Only transactions with `original_currency` matching the budget's currency are counted toward the budget spend total. This allows users to set separate budgets per currency (e.g. a THB budget for daily spending while travelling, an AUD budget for home expenses).
+
+### Period types & recurring toggle
+
+**Recurring budgets (`is_recurring = true`):**
 - Weekly (Monday–Sunday)
-- Fortnightly (Monday of week 1 to Sunday of week 2; aligned to calendar)
+- Fortnightly (14 days starting from the budget's `start_date`)
 - Monthly (1st–last day of calendar month)
-- Auto-resets at end of each cycle; notification flags cleared on reset
+- **Auto-rolling:** The system calculates the current active period window from `start_date` + `period_type`. When the current period ends, the next period begins automatically — no manual re-creation needed.
+- Notification flags (`notified_75`, `notified_90`, `notified_100`) are **reset automatically** when a new period begins.
 
-**Custom date range:**
-- User picks start and end date
-- One-off; does not repeat
-- Deactivates automatically on end date (`is_active = false`)
+**Non-recurring budgets (`is_recurring = false`):**
+- Can use any `period_type` (weekly/fortnightly/monthly) for a single occurrence, or `custom` with explicit `start_date` → `end_date`
+- Covers one period only. After the period ends, the budget becomes inactive (`is_active = false`)
+
+**Custom date range (always non-recurring):**
+- User picks explicit start and end date
+- Deactivates automatically on end date
+
+### Auto-rolling period calculator
+
+For recurring budgets, the system computes the current active window:
+
+1. Calculate period duration from `period_type` (7 days / 14 days / calendar month)
+2. Count how many full periods have elapsed since `start_date`
+3. Current window = `start_date + (periodIndex × duration)` → end of that period
+4. For monthly: use calendar month arithmetic (Jan 1 → Jan 31, Feb 1 → Feb 28/29, etc.)
+
+Past completed periods are stored as computed windows (not separate DB rows) and accessible via the **Period History Screen**.
 
 ### Budget scope
 
-**Global budget:** single total spend limit across all categories. Displayed as a progress bar on the Home screen summary card.
+Budgets support three category scope modes:
 
-**Per-category budget:** independent limit for a specific category. Shown on the category card and Budget Detail screen. Each category budget has its own period type.
+| Scope type | Behavior | Example |
+|---|---|---|
+| `all` | Count all expenses in the budget's currency — no category filter | "Track all my AUD spending" |
+| `include` | Count only expenses in the listed categories | "Track only Food + Groceries" |
+| `exclude` | Count all expenses EXCEPT the listed categories | "Track everything except Subscriptions + Bills" |
 
-One global budget maximum; one budget per category maximum.
+- **`all`**: equivalent to the old "global budget" — a single total spend limit across all categories in a given currency. Displayed as a progress bar on the Home screen summary card.
+- **`include`**: user selects one or more parent categories. Only expenses assigned to those categories (including their sub-categories) count toward the budget. At least 1 category must be selected.
+- **`exclude`**: user selects one or more parent categories to exclude. All other expenses in the budget's currency count toward the budget. At least 1 category must be selected.
+
+Category selection uses a multi-select checklist showing parent categories only. Sub-category expenses automatically roll up to their parent for budget tracking.
+
+If a category referenced in `include`/`exclude` is deleted, its ID is removed from the list. If an `include` list becomes empty, the budget is deactivated.
 
 **Important:** Currency income and exchange events are excluded from budget spend calculations. Only `transaction_type = expense` counts toward budgets.
 
 ### Alert thresholds
 
-| State | Trigger | Progress bar colour | Push notification |
+| State | Trigger | Progress bar colour | Notification |
 |---|---|---|---|
-| On track | < 80% used | Green | None |
-| Warning | 80–99% used | Amber | Once: "You've used 80% of your [X] budget" |
-| Over budget | ≥ 100% used | Red | Once: "You've exceeded your [X] budget by $Y [base currency]" |
+| On track | < 75% used | Green | None |
+| Caution | 75–89% used | Amber | Once: "You've used 75% of your [X] budget" |
+| Critical | 90–99% used | Orange-red | Once: "You've used 90% of your [X] budget — $Z remaining" |
+| Over budget | ≥ 100% used | Red | Once: "You've exceeded your [X] budget by $Y" |
 
-- Alerts fire **once per threshold per cycle** — `notified_80` and `notified_100` flags reset at cycle start
+- Alerts fire **once per threshold per cycle** — `notified_75`, `notified_90`, and `notified_100` flags reset when a new period starts
 - Overspending does **not** block adding new expenses
 - User can disable alerts per budget in Settings
-- **Budget alert evaluation**: Performed on the NestJS backend after sync. Backend sends FCM push to mobile device
 
-### Fortnightly alignment
+### Budget-aware transaction entry
 
-Fortnightly periods are **calendar-aligned**: they always start on a Monday and end on the second Sunday. The year's fortnightly periods are anchored from the first Monday of January. Example: Mon 6 Jan–Sun 19 Jan, Mon 20 Jan–Sun 2 Feb, etc. Budget created mid-fortnight joins the current cycle.
+When adding an expense in the **Transaction Bottom Sheet**:
+- If any active budget (global or category-scoped) for the transaction's currency is **≥ 90% used**, show an inline warning below the amount field:
+  - `⚠️ Food budget: $12.50 remaining` (category budget)
+  - `⚠️ Global THB budget: ฿500.00 remaining` (global budget)
+- Warning is informational only — does not block saving
+- Multiple budget warnings may appear if both a global and category budget are near their limits
+
+### Platform-specific alert delivery
+
+| Platform | Alert delivery method |
+|---|---|
+| Mobile (Flutter) | Local push notification (evaluated on-device when transactions change) |
+| Web (Next.js) | In-app toast notification (shown at top/bottom of screen when threshold is crossed) |
+| Backend (NestJS) | FCM push notification (sent after sync; supplements mobile local notification when online) |
+
+**Mobile local alerts:** Evaluated reactively when `budgetProgressListProvider` recalculates after a transaction insert/update/delete. This ensures alerts fire even when offline.
+
+**Web toast alerts:** Displayed as transient toast notifications when the web app detects a budget threshold crossing after a transaction save. Toast auto-dismisses after 5 seconds but can be manually dismissed.
+
+### Period history
+
+- Displayed **inline** on the **Budget Detail Screen** below the configuration section
+- Shows all past completed periods for the budget as a scrollable list
+- Each past period displays: date range, amount spent, limit, percentage
+- Ordered most-recent-first
+- Only shown for recurring budgets (non-recurring budgets have no past periods)
+
 
 ### Acceptance criteria
 
-- [ ] User can create a global budget with a repeating or custom period
-- [ ] User can create a per-category budget with its own period type
-- [ ] 80% alert fires exactly once per cycle when threshold is crossed
+- [ ] User can create a global budget with a chosen currency, repeating or one-shot period
+- [ ] User can create a per-category budget with its own currency and period type
+- [ ] Budget only counts expenses matching the budget's currency (`original_currency`)
+- [ ] User can toggle recurring on/off when creating a budget
+- [ ] Recurring budgets auto-roll to the next period window without user action
+- [ ] Non-recurring budgets set `is_active = false` after their period ends
+- [ ] 75% alert fires exactly once per cycle when threshold is crossed
+- [ ] 90% alert fires exactly once per cycle when threshold is crossed
 - [ ] 100% alert fires exactly once per cycle when threshold is crossed
-- [ ] `notified_80` and `notified_100` reset at the start of each new cycle
-- [ ] Custom date range budget sets `is_active = false` automatically after end date
-- [ ] Editing a budget amount resets both notification flags
+- [ ] `notified_75`, `notified_90`, and `notified_100` reset at the start of each new cycle
+- [ ] Editing a budget amount resets all notification flags
 - [ ] Overspend does not prevent adding new expenses
 - [ ] Currency income and exchange events do not count toward budget spend totals
-- [ ] Budget alerts sent via FCM from NestJS backend to mobile devices
+- [ ] Transaction entry shows inline budget remaining warning when any matching budget ≥ 90% used
+- [ ] Mobile: budget alerts fire as local notifications (works offline)
+- [ ] Web: budget alerts display as toast notifications (auto-dismiss after 5s)
+- [ ] Backend: FCM push notifications sent after sync as supplementary alert
+- [ ] Budget Detail Screen shows inline period history section for recurring budgets
+- [ ] Period history displays all past periods with spend/limit/percentage
 
 ---
 
@@ -1331,10 +1413,10 @@ All summary sheets use Excel formulas (`SUMIFS`, `COUNTIFS`) referencing `All Tr
 |---|---|
 | Excel | `project-pet-export-YYYY-MM-DD.xlsx` |
 
-### Flutter packages (mobile export)
+### Flutter packages (cross-platform export)
 
 - Excel: `excel` package (`pub.dev/packages/excel`)
-- Share sheet: `share_plus` package
+- File saving: `file_saver` package (Allows user to pick the destination folder across Web, Android, and iOS)
 
 ### NestJS export endpoint (web export)
 
@@ -1348,6 +1430,7 @@ Query params: `?from=YYYY-MM-DD&to=YYYY-MM-DD`
 
 - [ ] "Export as Excel" button present in Settings for all users
 - [ ] User can select a custom date range before exporting
+- [ ] User can pick the destination folder when exporting Excel across Web, Android, and iOS
 - [ ] Excel export produces a single `.xlsx` file with raw data sheets + formula-driven summary sheets
 - [ ] Summary sheets (Daily, Weekly, Fortnightly, Monthly, Yearly) correctly aggregate from `All Transactions`
 - [ ] `Wallets` sheet shows running balance per currency
@@ -1538,11 +1621,24 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `user_id` | UUID | FK → users (backend only) |
 | `name` | VARCHAR(50) | |
 | `colour_hex` | VARCHAR(7) | e.g. `#378ADD` |
+| `icon_code_point` | INTEGER | Material Icons codePoint (default `0xe148` = Icons.category) |
 | `is_default` | BOOLEAN | |
 | `is_hidden` | BOOLEAN | Default false |
 | `sort_order` | INTEGER | |
+| `parent_id` | UUID | Nullable; FK → categories (self-referential, 1-level max) |
+| `sync_status` | VARCHAR(10) | pending / synced (mobile Drift only) |
 | `created_at` | TIMESTAMP | |
 | `updated_at` | TIMESTAMP | |
+
+#### Sub-category hierarchy rules
+
+- `parent_id` references another category in the same table (self-referential FK)
+- **Maximum depth: 1 level** — a category with a non-null `parent_id` cannot itself be a parent (enforced on both backend sync and mobile DAO)
+- Sub-categories inherit display context from their parent (colour, grouping in charts)
+- Backend sync validation: rejects `parentId` if the referenced category already has a `parent_id` (prevents nesting beyond 1 level)
+- Backend sync validation: rejects `parentId` if the referenced category does not exist
+- Deleting a parent category is blocked if it has children — client must delete/reassign children first
+- On backend `onDelete: SetNull` — if a parent is force-deleted via DB, children become top-level
 
 ### `budgets`
 
@@ -1550,17 +1646,32 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 |---|---|---|
 | `id` | UUID | PK |
 | `user_id` | UUID | FK → users (backend only) |
-| `scope` | VARCHAR(10) | global / category |
-| `category_id` | UUID | Nullable; FK → categories |
-| `amount_base` | DECIMAL(12,2) | Budget limit in user's base currency |
+| `name` | VARCHAR(150) | Nullable; user-defined label (auto-generated if blank) |
+| `scope_type` | VARCHAR(10) | `all` / `include` / `exclude` |
+| `category_ids` | TEXT | Nullable; JSON array of category UUIDs (null when scope_type = 'all') |
+| `currency` | VARCHAR(3) | Budget currency (matches transactions' `original_currency`) |
+| `amount_base` | DECIMAL(12,2) | Budget limit in the budget's currency |
 | `period_type` | VARCHAR(12) | weekly / fortnightly / monthly / custom |
-| `start_date` | DATE | Anchor date for repeating; start for custom |
-| `end_date` | DATE | Nullable; only for custom ranges |
-| `is_active` | BOOLEAN | False after custom range expires |
-| `notified_80` | BOOLEAN | Reset each cycle |
-| `notified_100` | BOOLEAN | Reset each cycle |
+| `is_recurring` | BOOLEAN | Default true; false = one-shot budget |
+| `start_date` | DATE | Anchor date for repeating periods; start for custom |
+| `end_date` | DATE | Nullable; only for non-recurring/custom ranges |
+| `is_active` | BOOLEAN | False after non-recurring budget expires |
+| `notified_75` | BOOLEAN | Reset each new cycle |
+| `notified_90` | BOOLEAN | Reset each new cycle |
+| `notified_100` | BOOLEAN | Reset each new cycle |
+| `sync_status` | VARCHAR(10) | pending / synced (mobile Drift only) |
 | `created_at` | TIMESTAMP | |
 | `updated_at` | TIMESTAMP | |
+
+#### Budget scope & currency semantics
+
+- **`scope_type = 'all'`**: Counts all expenses in the budget's `currency` (global budget)
+- **`scope_type = 'include'`**: Counts only expenses whose `category_id` is in `category_ids` JSON array
+- **`scope_type = 'exclude'`**: Counts all expenses EXCEPT those in `category_ids`
+- Sub-category expansion: when a parent category is in `category_ids`, its children are automatically included in spend calculations
+- Budget spend is calculated from `original_amount` (not `amount_base`) filtered by `original_currency = budget.currency`
+- Fortnightly period is exactly 14 days (not "every two weeks" relative to calendar)
+- Non-recurring budgets set `is_active = false` after their period ends
 
 ### `exchange_rates`
 

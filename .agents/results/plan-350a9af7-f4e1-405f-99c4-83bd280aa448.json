@@ -1,0 +1,91 @@
+{
+  "project": "Excel Import & Export Fix (Mobile, Backend, Docs)",
+  "goals": "Implement Excel import functionality on Mobile and Backend, fix empty date/period rows in exports, support missing dates/aggregates, and add comprehensive guides.",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Mobile: Excel Parser & Row Model",
+      "agent": "mobile",
+      "priority": "P0",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Create ImportRow data class with validation state (Completed)",
+        "Parse sheets: All Transactions, Currency Income, and Currency Exchanges using 'excel' package",
+        "Implement column mapping, robust cell value parsing (string, double, date, serial numbers), and skip no_transaction rows",
+        "Support missing dates/period aggregate detection (Period column or [WEEK]/[MONTH]/etc description prefixes)"
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Mobile: Duplicate Detection & Drift Insert",
+      "agent": "mobile",
+      "priority": "P0",
+      "dependencies": ["T1"],
+      "acceptanceCriteria": [
+        "Match incoming rows against existing local Drift DB transactions by date + amount + category",
+        "Detect existing records matching by UUID for updates",
+        "Write transactions to Drift database with transaction sync_status = 'pending'"
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Mobile: Import Preview Screen",
+      "agent": "mobile",
+      "priority": "P1",
+      "dependencies": ["T2"],
+      "acceptanceCriteria": [
+        "Display counts for Ready, Duplicate, Update, and Error rows",
+        "Show scrollable list of rows with details and status icon",
+        "Allow checking/unchecking rows for import (duplicates unchecked by default)",
+        "Show clear error message indicating row number if validation fails, and block import"
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Mobile: Settings Integration",
+      "agent": "mobile",
+      "priority": "P2",
+      "dependencies": ["T3"],
+      "acceptanceCriteria": [
+        "Add 'Import from Excel' action under Export section in SettingsScreen",
+        "Integrate file picker to select .xlsx and navigate to ImportPreviewScreen"
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "Backend: Import DTOs & Service",
+      "agent": "backend",
+      "priority": "P0",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Create ImportTransactionDto with class-validator validation annotations",
+        "Create ImportService to validate parsed transaction lists and detect duplicates/updates against PostgreSQL DB"
+      ]
+    },
+    {
+      "id": "T6",
+      "title": "Backend: Import Controller & Routing",
+      "agent": "backend",
+      "priority": "P0",
+      "dependencies": ["T5"],
+      "acceptanceCriteria": [
+        "Create ImportController with POST /import/transactions endpoint",
+        "Register ImportModule in AppModule"
+      ]
+    },
+    {
+      "id": "T7",
+      "title": "Docs: Import Guide & PRD v4",
+      "agent": "docs",
+      "priority": "P1",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Create docs/import-guide.md describing file structure, manual template, aggregates, duplicate handling, and troubleshooting",
+        "Duplicate docs/prd-project-pet.md to docs/prd-project-pet-v4.md and update details including Section 25 Excel Import"
+      ]
+    }
+  ],
+  "futureWork": {
+    "web": "Next.js Web client Excel parsing using SheetJS/xlsx, Web import preview modal UI, settings integration, and POST /import/transactions endpoint caller."
+  }
+}

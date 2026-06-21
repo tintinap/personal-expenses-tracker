@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../shared/providers/shared_providers.dart';
 import '../providers/wallet_providers.dart';
 import '../widgets/currency_card.dart';
 
@@ -12,13 +13,12 @@ class WalletsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final portfolioAsync = ref.watch(portfolioProvider);
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+    final viewRate = ref.watch(viewCurrencyRateProvider).valueOrNull ?? 1.0;
+    
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Wallets'),
-      ),
-      body: portfolioAsync.when(
+    return portfolioAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error loading portfolio: $err')),
         data: (portfolio) {
@@ -55,11 +55,12 @@ class WalletsScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '💰 Total Portfolio Value',
+                            'Total Net Worth',
                             style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer,
+                              color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.9),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -70,11 +71,20 @@ class WalletsScreen extends ConsumerWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          if (portfolio.baseCurrency != viewCurrency) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '≈ $viewCurrency ${(portfolio.totalBaseEquivalent * viewRate).toStringAsFixed(2)}',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           Text(
                             '(converted at latest rates)',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8),
+                              color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -109,7 +119,6 @@ class WalletsScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
     );
   }
 }

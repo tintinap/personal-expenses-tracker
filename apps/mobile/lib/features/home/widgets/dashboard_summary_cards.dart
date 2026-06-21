@@ -9,6 +9,8 @@ class DashboardSummaryCards extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final baseCurrency = ref.watch(baseCurrencyProvider);
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+    final viewRate = ref.watch(viewCurrencyRateProvider).valueOrNull ?? 1.0;
     final summary = ref.watch(dashboardSummaryProvider);
     final theme = Theme.of(context);
 
@@ -21,6 +23,9 @@ class DashboardSummaryCards extends ConsumerWidget {
                 theme: theme,
                 title: 'Total Spent',
                 value: '$baseCurrency ${summary.totalSpent.toStringAsFixed(2)}',
+                secondaryValue: baseCurrency != viewCurrency 
+                    ? '≈ $viewCurrency ${(summary.totalSpent * viewRate).toStringAsFixed(2)}'
+                    : null,
                 subtitle: '${summary.transactionCount} transactions',
                 color: theme.colorScheme.primaryContainer,
                 onColor: theme.colorScheme.onPrimaryContainer,
@@ -32,6 +37,9 @@ class DashboardSummaryCards extends ConsumerWidget {
                 theme: theme,
                 title: 'Net Income',
                 value: '$baseCurrency ${summary.netIncome.toStringAsFixed(2)}',
+                secondaryValue: baseCurrency != viewCurrency 
+                    ? '≈ $viewCurrency ${(summary.netIncome * viewRate).toStringAsFixed(2)}'
+                    : null,
                 subtitle: 'Total Net Flow',
                 color: theme.colorScheme.tertiaryContainer,
                 onColor: theme.colorScheme.onTertiaryContainer,
@@ -44,6 +52,9 @@ class DashboardSummaryCards extends ConsumerWidget {
           theme: theme,
           title: 'Top Category',
           value: summary.topCategoryName,
+          secondaryValue: baseCurrency != viewCurrency && summary.topCategoryAmount > 0
+              ? '≈ $viewCurrency ${(summary.topCategoryAmount * viewRate).toStringAsFixed(2)}'
+              : null,
           subtitle: '$baseCurrency ${summary.topCategoryAmount.toStringAsFixed(2)} spent',
           color: theme.colorScheme.secondaryContainer,
           onColor: theme.colorScheme.onSecondaryContainer,
@@ -57,6 +68,7 @@ class DashboardSummaryCards extends ConsumerWidget {
     required ThemeData theme,
     required String title,
     required String value,
+    String? secondaryValue,
     required String subtitle,
     required Color color,
     required Color onColor,
@@ -71,21 +83,37 @@ class DashboardSummaryCards extends ConsumerWidget {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             title,
             style: theme.textTheme.labelMedium?.copyWith(color: onColor),
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: onColor,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: onColor,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
+          if (secondaryValue != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              secondaryValue,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: onColor.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
             subtitle,

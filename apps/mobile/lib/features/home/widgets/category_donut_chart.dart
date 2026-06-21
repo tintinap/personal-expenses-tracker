@@ -6,8 +6,21 @@ import '../../shared/providers/shared_providers.dart';
 
 class CategoryDonutChart extends ConsumerStatefulWidget {
   final Set<String>? excludedCategoryIds;
-  
-  const CategoryDonutChart({super.key, this.excludedCategoryIds});
+  final Set<String>? filterCurrencies;
+
+  /// Fired when the user taps a pie slice. Receives the **parent** category id
+  /// that the slice represents.
+  final void Function(String parentCategoryId)? onSliceTap;
+
+  final bool showViewCurrency;
+
+  const CategoryDonutChart({
+    super.key,
+    this.excludedCategoryIds,
+    this.filterCurrencies,
+    this.onSliceTap,
+    this.showViewCurrency = true,
+  });
 
   @override
   ConsumerState<CategoryDonutChart> createState() => _CategoryDonutChartState();
@@ -15,15 +28,25 @@ class CategoryDonutChart extends ConsumerStatefulWidget {
 
 class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
   int _touchedIndex = -1;
+  // Most recent sorted slice → categoryId mapping, kept in sync with [build]
+  // so the touch callback can resolve the index back to a category id.
+  List<String> _sortedKeys = const [];
 
   @override
   Widget build(BuildContext context) {
     var expenses = ref.watch(expenseListProvider);
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
+    final baseCurrency = ref.watch(baseCurrencyProvider);
+    final viewCurrency = ref.watch(viewCurrencyProvider);
+    final viewRate = ref.watch(viewCurrencyRateProvider).valueOrNull ?? 1.0;
     final theme = Theme.of(context);
 
     if (widget.excludedCategoryIds != null) {
       expenses = expenses.where((e) => !widget.excludedCategoryIds!.contains(e.categoryId)).toList();
+    }
+
+    if (widget.filterCurrencies != null && widget.filterCurrencies!.isNotEmpty) {
+      expenses = expenses.where((e) => widget.filterCurrencies!.contains(e.originalCurrency)).toList();
     }
 
     if (expenses.isEmpty) {
@@ -35,14 +58,17 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
       );
     }
 
-    // Group expenses by category
+    // Group expenses by category — resolve sub-categories to their parent
     final categoryTotals = <String, double>{};
     double totalSpent = 0;
     
     for (final exp in expenses) {
       if (exp.categoryId != null) {
+        // Find the category and resolve to parent if it's a sub-category
+        final cat = categories.where((c) => c.id == exp.categoryId).firstOrNull;
+        final displayId = (cat != null && cat.parentId != null) ? cat.parentId! : exp.categoryId!;
         final amt = exp.amountBase.abs(); // Ensure positive for chart rendering
-        categoryTotals[exp.categoryId!] = (categoryTotals[exp.categoryId!] ?? 0) + amt;
+        categoryTotals[displayId] = (categoryTotals[displayId] ?? 0) + amt;
         totalSpent += amt;
       }
     }
@@ -50,6 +76,7 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
     // Sort to handle colors consistently
     final sortedEntries = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+    _sortedKeys = sortedEntries.map((e) => e.key).toList(growable: false);
 
     // Largest Remainder Method to ensure rounded percentages sum exactly to 100%
     final exactPercentages = sortedEntries.map((e) => totalSpent > 0 ? (e.value / totalSpent * 100) : 0.0).toList();
@@ -107,14 +134,19 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
     }
 
     String centerLabel = 'Total';
-    String centerValue = totalSpent.toStringAsFixed(2);
+    double centerAmount = totalSpent;
 
     if (_touchedIndex >= 0 && _touchedIndex < sortedEntries.length) {
       final touchedEntry = sortedEntries[_touchedIndex];
       final touchedCategory = categories.where((c) => c.id == touchedEntry.key).firstOrNull;
       centerLabel = touchedCategory?.name ?? 'Unknown';
-      centerValue = touchedEntry.value.toStringAsFixed(2);
+      centerAmount = touchedEntry.value;
     }
+
+    String centerValue = '$baseCurrency ${centerAmount.toStringAsFixed(2)}';
+    String? centerSecondaryValue = widget.showViewCurrency && baseCurrency != viewCurrency 
+        ? '≈ $viewCurrency ${(centerAmount * viewRate).toStringAsFixed(2)}'
+        : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -131,15 +163,28 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
                 PieChartData(
                   pieTouchData: PieTouchData(
                     touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                      final touched = pieTouchResponse?.touchedSection;
+                      // Always update the highlight ring while the finger is
+                      // interacting with the chart.
                       setState(() {
                         if (!event.isInterestedForInteractions ||
                             pieTouchResponse == null ||
-                            pieTouchResponse.touchedSection == null) {
+                            touched == null) {
                           _touchedIndex = -1;
                           return;
                         }
-                        _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                        _touchedIndex = touched.touchedSectionIndex;
                       });
+
+                      // Drill into transactions only on tap-up over a slice.
+                      if (event is FlTapUpEvent &&
+                          touched != null &&
+                          widget.onSliceTap != null) {
+                        final idx = touched.touchedSectionIndex;
+                        if (idx >= 0 && idx < _sortedKeys.length) {
+                          widget.onSliceTap!(_sortedKeys[idx]);
+                        }
+                      }
                     },
                   ),
                   borderData: FlBorderData(show: false),
@@ -157,12 +202,31 @@ class _CategoryDonutChartState extends ConsumerState<CategoryDonutChart> {
                     style: theme.textTheme.labelMedium,
                     textAlign: TextAlign.center,
                   ),
-                  Text(
-                    centerValue,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  SizedBox(
+                    width: chartSize * 0.45,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        centerValue,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24, // bigger font that will scale down if too wide
+                        ),
+                      ),
                     ),
                   ),
+                  if (centerSecondaryValue != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      centerSecondaryValue,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                        fontSize: 10,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ],

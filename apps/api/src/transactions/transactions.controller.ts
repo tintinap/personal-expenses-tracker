@@ -14,12 +14,16 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TransactionsService } from './transactions.service';
+import { BudgetAlertsService } from '../budgets/budget-alerts.service';
 import { CreateTransactionDto, UpdateTransactionDto } from './dto/transaction.dto';
 
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
 export class TransactionsController {
-  constructor(private readonly transactionsService: TransactionsService) {}
+  constructor(
+    private readonly transactionsService: TransactionsService,
+    private readonly budgetAlertsService: BudgetAlertsService,
+  ) {}
 
   @Get()
   async findAll(
@@ -49,7 +53,9 @@ export class TransactionsController {
 
   @Post()
   async create(@Req() req: any, @Body() body: CreateTransactionDto) {
-    return this.transactionsService.create(req.user.userId, body);
+    const result = await this.transactionsService.create(req.user.userId, body);
+    await this.budgetAlertsService.evaluateUserBudgets(req.user.userId).catch(() => {});
+    return result;
   }
 
   @Patch(':id')
@@ -58,7 +64,9 @@ export class TransactionsController {
     @Param('id') id: string,
     @Body() body: UpdateTransactionDto,
   ) {
-    return this.transactionsService.update(id, req.user.userId, body);
+    const result = await this.transactionsService.update(id, req.user.userId, body);
+    await this.budgetAlertsService.evaluateUserBudgets(req.user.userId).catch(() => {});
+    return result;
   }
 
   @Delete(':id')

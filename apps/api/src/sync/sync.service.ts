@@ -25,7 +25,7 @@ export class SyncService {
     }>,
   ) {
     let accepted = 0;
-    const conflicts: any[] = [];
+    const conflicts: Array<{ recordType: string; recordId: string; error: string }> = [];
 
     for (const record of records) {
       try {
@@ -83,6 +83,19 @@ export class SyncService {
     };
   }
 
+  private getBalanceDelta(transactionType: string, amount: number): number {
+    switch (transactionType) {
+      case 'expense':
+      case 'currency_exchange_out':
+        return -amount;
+      case 'currency_income':
+      case 'currency_exchange_in':
+        return amount;
+      default:
+        return 0;
+    }
+  }
+
   private async syncTransaction(
     userId: string,
     record: { recordId: string; operation: string; payload: any },
@@ -114,6 +127,11 @@ export class SyncService {
           isRecurring: payload.isRecurring || false,
           recurrenceType: payload.recurrenceType || null,
         });
+
+        const delta = this.getBalanceDelta(payload.transactionType, Number(payload.originalAmount));
+        if (delta !== 0) {
+          await this.repository.upsertCurrencyBalance(userId, payload.originalCurrency, delta);
+        }
         break;
       }
 
@@ -136,6 +154,22 @@ export class SyncService {
               note: payload.note || null,
               transactionDate: new Date(payload.transactionDate),
             });
+
+            // Reverse old balance impact
+            const oldDelta = this.getBalanceDelta(existing.transactionType, Number(existing.originalAmount));
+            if (oldDelta !== 0) {
+              await this.repository.upsertCurrencyBalance(userId, existing.originalCurrency, -oldDelta);
+            }
+
+            // Apply new balance impact
+            const newTxType = payload.transactionType || existing.transactionType;
+            const newAmount = payload.originalAmount !== undefined ? payload.originalAmount : existing.originalAmount;
+            const newCurrency = payload.originalCurrency || existing.originalCurrency;
+            
+            const newDelta = this.getBalanceDelta(newTxType, Number(newAmount));
+            if (newDelta !== 0) {
+              await this.repository.upsertCurrencyBalance(userId, newCurrency, newDelta);
+            }
           } else {
             // Server version is newer — log conflict
             await this.repository.logConflict({
@@ -151,6 +185,13 @@ export class SyncService {
       }
 
       case 'delete': {
+        const existing = await this.repository.findTransactionById(recordId);
+        if (existing && !existing.deletedAt) {
+          const oldDelta = this.getBalanceDelta(existing.transactionType, Number(existing.originalAmount));
+          if (oldDelta !== 0) {
+            await this.repository.upsertCurrencyBalance(userId, existing.originalCurrency, -oldDelta);
+          }
+        }
         await this.repository.softDeleteTransaction(recordId);
         break;
       }
@@ -168,23 +209,39 @@ export class SyncService {
         const existing = await this.repository.findCategoryById(recordId);
         if (existing) return;
 
+        if (payload.parentId) {
+          const parent = await this.repository.findCategoryById(payload.parentId);
+          if (!parent) throw new Error(`Invalid parentId: Parent category not found`);
+          if (parent.parentId) throw new Error(`Invalid parentId: Maximum category depth exceeded (1 level allowed).`);
+        }
+
         await this.repository.createCategory({
           id: recordId,
           userId,
           name: payload.name,
           colourHex: payload.colourHex,
+          iconCodePoint: payload.iconCodePoint ?? 0,
           isDefault: payload.isDefault || false,
           isHidden: payload.isHidden || false,
           sortOrder: payload.sortOrder || 0,
+          parentId: payload.parentId || null,
         });
         break;
       }
 
       case 'update': {
+        if (payload.parentId) {
+          const parent = await this.repository.findCategoryById(payload.parentId);
+          if (!parent) throw new Error(`Invalid parentId: Parent category not found`);
+          if (parent.parentId) throw new Error(`Invalid parentId: Maximum category depth exceeded (1 level allowed).`);
+        }
+
         await this.repository.updateCategory(recordId, {
           name: payload.name,
           colourHex: payload.colourHex,
+          ...(payload.iconCodePoint !== undefined && { iconCodePoint: payload.iconCodePoint }),
           isHidden: payload.isHidden,
+          parentId: payload.parentId,
         });
         break;
       }
@@ -210,10 +267,13 @@ export class SyncService {
         await this.repository.createBudget({
           id: recordId,
           userId,
-          scope: payload.scope,
-          categoryId: payload.categoryId || null,
+          name: payload.name ?? null,
+          scopeType: payload.scopeType,
+          categoryIds: payload.categoryIds ?? null,
+          currency: payload.currency,
           amountBase: payload.amountBase,
           periodType: payload.periodType,
+          isRecurring: payload.isRecurring ?? true,
           startDate: new Date(payload.startDate),
           endDate: payload.endDate ? new Date(payload.endDate) : null,
           isActive: payload.isActive ?? true,
@@ -223,12 +283,18 @@ export class SyncService {
 
       case 'update': {
         await this.repository.updateBudget(recordId, {
+          name: payload.name ?? null,
+          scopeType: payload.scopeType,
+          categoryIds: payload.categoryIds ?? null,
+          currency: payload.currency,
           amountBase: payload.amountBase,
           periodType: payload.periodType,
+          isRecurring: payload.isRecurring ?? true,
           startDate: new Date(payload.startDate),
           endDate: payload.endDate ? new Date(payload.endDate) : null,
-          isActive: payload.isActive,
-          notified80: payload.notified80 ?? false,
+          isActive: payload.isActive ?? true,
+          notified75: payload.notified75 ?? false,
+          notified90: payload.notified90 ?? false,
           notified100: payload.notified100 ?? false,
         });
         break;

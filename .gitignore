@@ -100,3 +100,6 @@ coverage/
 .gemini/
 .serena/
 .github/
+
+# Graphify
+graphify-out/

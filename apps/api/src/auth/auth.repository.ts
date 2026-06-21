@@ -34,6 +34,12 @@ export class AuthRepository {
     });
   }
 
+  async deleteUser(id: string): Promise<User> {
+    return this.prisma.user.delete({
+      where: { id },
+    });
+  }
+
   async seedDefaultCategories(userId: string): Promise<void> {
     const defaults = [
       { name: 'Food & dining', colourHex: '#378ADD', sortOrder: 0 },

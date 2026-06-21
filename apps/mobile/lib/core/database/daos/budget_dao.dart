@@ -14,7 +14,7 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
     return (select(budgets)
           ..where((b) => b.isActive.equals(true))
           ..orderBy([
-            (b) => OrderingTerm.asc(b.scope), // global first, then category
+            (b) => OrderingTerm.asc(b.scopeType), // global first, then category
             (b) => OrderingTerm.desc(b.createdAt),
           ]))
         .get();
@@ -25,7 +25,7 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
     return (select(budgets)
           ..where((b) => b.isActive.equals(true))
           ..orderBy([
-            (b) => OrderingTerm.asc(b.scope),
+            (b) => OrderingTerm.asc(b.scopeType),
             (b) => OrderingTerm.desc(b.createdAt),
           ]))
         .watch();

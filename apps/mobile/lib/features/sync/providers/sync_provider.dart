@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:convert';
+
 import '../../../core/database/database.dart';
 import '../../../core/providers/database_providers.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -127,5 +129,79 @@ class SyncNotifier extends StateNotifier<SyncState> {
       await _updatePendingCount();
       _isProcessing = false;
     }
+  }
+
+  Future<void> pushAllLocalRecords() async {
+    final db = _ref.read(databaseProvider);
+    
+    // Add all existing categories
+    final categories = await db.select(db.categories).get();
+    for (final c in categories) {
+      await db.into(db.syncQueue).insert(SyncQueueCompanion(
+        recordType: drift.Value('category'),
+        recordId: drift.Value(c.id),
+        operation: drift.Value('insert'),
+        payload: drift.Value(jsonEncode({
+          'name': c.name,
+          'colourHex': c.colourHex,
+          'iconCodePoint': c.iconCodePoint,
+          'isDefault': c.isDefault,
+          'isHidden': c.isHidden,
+          'sortOrder': c.sortOrder,
+          'parentId': c.parentId,
+        })),
+      ));
+    }
+
+    // Add all existing budgets
+    final budgets = await db.select(db.budgets).get();
+    for (final b in budgets) {
+      await db.into(db.syncQueue).insert(SyncQueueCompanion(
+        recordType: drift.Value('budget'),
+        recordId: drift.Value(b.id),
+        operation: drift.Value('insert'),
+        payload: drift.Value(jsonEncode({
+          'name': b.name,
+          'scopeType': b.scopeType,
+          'categoryIds': b.categoryIds,
+          'currency': b.currency,
+          'amountBase': b.amountBase,
+          'periodType': b.periodType,
+          'isRecurring': b.isRecurring,
+          'startDate': b.startDate.toIso8601String(),
+          'endDate': b.endDate?.toIso8601String(),
+          'isActive': b.isActive,
+        })),
+      ));
+    }
+
+    // Add all existing transactions
+    final transactions = await db.select(db.transactions).get();
+    for (final t in transactions) {
+      await db.into(db.syncQueue).insert(SyncQueueCompanion(
+        recordType: drift.Value('transaction'),
+        recordId: drift.Value(t.id),
+        operation: drift.Value('insert'),
+        payload: drift.Value(jsonEncode({
+          'transactionType': t.transactionType,
+          'amountBase': t.amountBase,
+          'originalAmount': t.originalAmount,
+          'originalCurrency': t.originalCurrency,
+          'exchangeRate': t.exchangeRate,
+          'rateDate': t.rateDate.toIso8601String(),
+          'rateEstimated': t.rateEstimated,
+          'rateSource': t.rateSource,
+          'exchangeEventId': t.exchangeEventId,
+          'categoryId': t.categoryId,
+          'note': t.note,
+          'sourceLabel': t.sourceLabel,
+          'transactionDate': t.transactionDate.toIso8601String(),
+          'isRecurring': t.isRecurring,
+          'recurrenceType': t.recurrenceType,
+        })),
+      ));
+    }
+
+    await processQueue();
   }
 }
