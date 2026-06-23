@@ -52,8 +52,6 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
 
   // Tracks which field the user is currently editing to prevent infinite update loops
   String? _lastEditedField;
-  // Once the user manually types a rate, it becomes locked
-  bool _isRateLocked = false;
   // Loading state for the "Get Rate" button
   bool _isFetchingRate = false;
   // Error message for the rate fetch
@@ -97,7 +95,6 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
           final fromAmt = outTx?.originalAmount ?? tx.originalAmount;
           if (inTx.originalAmount > 0) {
             _exchangeRateController.text = (fromAmt / inTx.originalAmount).toStringAsFixed(2);
-            _isRateLocked = true;
           }
         }
       }
@@ -110,7 +107,7 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
   void _onFromAmountChanged() {
     if (_lastEditedField == 'from') return;
     _lastEditedField = 'from';
-    _recalculateFromAmount();
+    _syncExchangeFields('from');
     _lastEditedField = null;
     setState(() {});
   }
@@ -118,7 +115,7 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
   void _onToAmountChanged() {
     if (_lastEditedField == 'to') return;
     _lastEditedField = 'to';
-    _recalculateFromToAmount();
+    _syncExchangeFields('to');
     _lastEditedField = null;
     setState(() {});
   }
@@ -126,83 +123,79 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
   void _onRateChanged() {
     if (_lastEditedField == 'rate') return;
     _lastEditedField = 'rate';
-    final rateText = _exchangeRateController.text.trim();
-    _isRateLocked = rateText.isNotEmpty && double.tryParse(rateText) != null;
-    _recalculateFromRate();
+    _syncExchangeFields('rate');
     _lastEditedField = null;
     setState(() {});
   }
 
   /// Rate means: 1 TO-currency = Rate FROM-currency
   /// E.g. Rate 23.90 means 1 AUD = 23.90 THB
-  /// So: To = From / Rate, From = To × Rate, Rate = From / To
+  /// Formulas: to = from / rate, from = to × rate, rate = from / to
   ///
-  /// RULE: Once the user manually sets the rate, it is LOCKED.
-  /// Only From and To recalculate each other using the fixed rate.
-  /// If rate is not locked, From+To will derive the rate.
+  /// When exchange rate is filled:
+  ///   - editing from → update to
+  ///   - editing to → update from
+  ///   - editing rate → update to only (from stays unchanged)
+  /// When exchange rate is empty:
+  ///   - any two filled fields → compute the third
 
-  /// When "From Amount" changes
-  void _recalculateFromAmount() {
-    final fromAmount = double.tryParse(_amountController.text);
-    if (fromAmount == null || fromAmount <= 0) return;
-
-    final rate = double.tryParse(_exchangeRateController.text);
-
-    if (_isRateLocked && rate != null && rate > 0) {
-      // Rate is locked → recalculate To = From / Rate
-      _exchangeToAmountController.removeListener(_onToAmountChanged);
-      _exchangeToAmountController.text = (fromAmount / rate).toStringAsFixed(2);
-      _exchangeToAmountController.addListener(_onToAmountChanged);
-    } else if (!_isRateLocked) {
-      // Rate is not locked → derive rate from From + To
-      final toAmount = double.tryParse(_exchangeToAmountController.text);
-      if (toAmount != null && toAmount > 0) {
-        _exchangeRateController.removeListener(_onRateChanged);
-        _exchangeRateController.text = (fromAmount / toAmount).toStringAsFixed(2);
-        _exchangeRateController.addListener(_onRateChanged);
-      }
-    }
+  double? _parsePositiveAmount(String text) {
+    final value = double.tryParse(text.trim());
+    if (value == null || value <= 0) return null;
+    return value;
   }
 
-  /// When "To Amount" changes
-  void _recalculateFromToAmount() {
-    final toAmount = double.tryParse(_exchangeToAmountController.text);
-    if (toAmount == null) return;
-
-    final rate = double.tryParse(_exchangeRateController.text);
-
-    if (_isRateLocked && rate != null && rate > 0) {
-      // Rate is locked → recalculate From = To × Rate
-      _amountController.removeListener(_onFromAmountChanged);
-      _amountController.text = (toAmount * rate).toStringAsFixed(2);
-      _amountController.addListener(_onFromAmountChanged);
-    } else if (!_isRateLocked) {
-      // Rate is not locked → derive rate from From + To
-      final fromAmount = double.tryParse(_amountController.text);
-      if (fromAmount != null && fromAmount > 0) {
-        _exchangeRateController.removeListener(_onRateChanged);
-        _exchangeRateController.text = (fromAmount / toAmount).toStringAsFixed(2);
-        _exchangeRateController.addListener(_onRateChanged);
-      }
-    }
+  void _updateFieldWithoutListener(
+    TextEditingController controller,
+    VoidCallback listener,
+    String value,
+  ) {
+    controller.removeListener(listener);
+    controller.text = value;
+    controller.addListener(listener);
   }
 
-  /// When "Rate" changes: recalculate To if From exists, else From if To exists
-  void _recalculateFromRate() {
-    final rate = double.tryParse(_exchangeRateController.text);
-    if (rate == null || rate <= 0) return;
+  void _syncExchangeFields(String editedField) {
+    final from = _parsePositiveAmount(_amountController.text);
+    final to = _parsePositiveAmount(_exchangeToAmountController.text);
+    final rate = _parsePositiveAmount(_exchangeRateController.text);
 
-    final fromAmount = double.tryParse(_amountController.text);
-    final toAmount = double.tryParse(_exchangeToAmountController.text);
+    if (editedField == 'rate') {
+      // Rate changed → keep from, recalculate to
+      if (rate != null && from != null) {
+        _updateFieldWithoutListener(
+          _exchangeToAmountController,
+          _onToAmountChanged,
+          (from / rate).toStringAsFixed(2),
+        );
+      }
+      return;
+    }
 
-    if (fromAmount != null && fromAmount > 0) {
-      _exchangeToAmountController.removeListener(_onToAmountChanged);
-      _exchangeToAmountController.text = (fromAmount / rate).toStringAsFixed(2);
-      _exchangeToAmountController.addListener(_onToAmountChanged);
-    } else if (toAmount != null && toAmount > 0) {
-      _amountController.removeListener(_onFromAmountChanged);
-      _amountController.text = (toAmount * rate).toStringAsFixed(2);
-      _amountController.addListener(_onFromAmountChanged);
+    if (rate != null) {
+      if (editedField == 'from' && from != null) {
+        _updateFieldWithoutListener(
+          _exchangeToAmountController,
+          _onToAmountChanged,
+          (from / rate).toStringAsFixed(2),
+        );
+      } else if (editedField == 'to' && to != null) {
+        _updateFieldWithoutListener(
+          _amountController,
+          _onFromAmountChanged,
+          (to * rate).toStringAsFixed(2),
+        );
+      }
+      return;
+    }
+
+    // Rate empty → fill whichever field is missing when two are known
+    if (from != null && to != null) {
+      _updateFieldWithoutListener(
+        _exchangeRateController,
+        _onRateChanged,
+        (from / to).toStringAsFixed(2),
+      );
     }
   }
 
@@ -229,14 +222,14 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
 
       if (!mounted) return;
 
-      // Fill the rate field and lock it
-      _exchangeRateController.removeListener(_onRateChanged);
-      _exchangeRateController.text = result.rate.toStringAsFixed(2);
-      _exchangeRateController.addListener(_onRateChanged);
-      _isRateLocked = true;
+      _updateFieldWithoutListener(
+        _exchangeRateController,
+        _onRateChanged,
+        result.rate.toStringAsFixed(2),
+      );
 
-      // Recalculate To amount if From amount exists
-      _recalculateFromAmount();
+      // Recalculate to amount from from amount (rate change keeps from fixed)
+      _syncExchangeFields('rate');
 
       setState(() => _isFetchingRate = false);
 
