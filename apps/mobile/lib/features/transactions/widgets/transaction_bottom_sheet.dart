@@ -55,7 +55,11 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
   // Loading state for the "Get Rate" button
   bool _isFetchingRate = false;
   // Error message for the rate fetch
+  // Error message for the rate fetch
   String? _rateError;
+
+  bool _isRecurring = false;
+  String? _recurrenceType;
 
   @override
   void initState() {
@@ -72,6 +76,8 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
         _selectedTab = TransactionTabType.expense;
         _amountController.text = tx.originalAmount.toString();
         _fromCurrency = tx.originalCurrency;
+        _isRecurring = tx.isRecurring;
+        _recurrenceType = tx.recurrenceType;
       } else if (tx.transactionType == 'currency_income') {
         _selectedTab = TransactionTabType.income;
         _amountController.text = tx.originalAmount.toString();
@@ -453,6 +459,8 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
       categoryId: Value(_selectedSubCategoryId ?? _selectedCategoryId),
       note: Value(_noteController.text),
       transactionDate: _selectedDate,
+      isRecurring: Value(_selectedTab == TransactionTabType.expense ? _isRecurring : false),
+      recurrenceType: Value(_selectedTab == TransactionTabType.expense && _isRecurring ? _recurrenceType : null),
       updatedAt: Value(now),
       syncStatus: const Value('pending'),
     );
@@ -602,7 +610,17 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
                 ButtonSegment(value: TransactionTabType.exchange, label: Text('Exchange')),
               ],
               selected: {_selectedTab},
-              onSelectionChanged: (set) => setState(() => _selectedTab = set.first),
+              onSelectionChanged: (set) => setState(() {
+                final newTab = set.first;
+                _selectedTab = newTab;
+                // Clear category when switching away from Expense tab so that
+                // income/exchange transactions don't retain a leftover category
+                // (which would show the wrong icon in the transaction list).
+                if (newTab != TransactionTabType.expense) {
+                  _selectedCategoryId = null;
+                  _selectedSubCategoryId = null;
+                }
+              }),
             ),
             const SizedBox(height: 16),
             
@@ -807,7 +825,7 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
                     // First dropdown: parent category
                     DropdownButtonFormField<String>(
                       isExpanded: true,
-                      value: _selectedCategoryId,
+                      initialValue: _selectedCategoryId,
                       hint: const Text('Select Category', maxLines: 1, overflow: TextOverflow.ellipsis),
                       items: _buildParentDropdownItems(allCategories),
                       onChanged: (id) => setState(() {
@@ -824,7 +842,7 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
                             Expanded(
                               child: DropdownButtonFormField<String?>(
                                 isExpanded: true,
-                                value: _selectedSubCategoryId,
+                                initialValue: _selectedSubCategoryId,
                                 hint: const Text(
                                   'Select Sub-category (optional)',
                                   maxLines: 1,
@@ -929,6 +947,35 @@ class _TransactionBottomSheetState extends ConsumerState<TransactionBottomSheet>
               controller: _noteController,
               decoration: const InputDecoration(labelText: 'Note (Optional)'),
             ),
+
+            if (_selectedTab == TransactionTabType.expense) ...[
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Recurring Expense'),
+                subtitle: const Text('Auto-logs in the future'),
+                value: _isRecurring,
+                onChanged: (val) {
+                  setState(() {
+                    _isRecurring = val;
+                    if (val && _recurrenceType == null) {
+                      _recurrenceType = 'monthly';
+                    }
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+              if (_isRecurring)
+                DropdownButtonFormField<String>(
+                  value: _recurrenceType,
+                  decoration: const InputDecoration(labelText: 'Repeats'),
+                  items: const [
+                    DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                    DropdownMenuItem(value: 'fortnightly', child: Text('Fortnightly')),
+                    DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                  ],
+                  onChanged: (val) => setState(() => _recurrenceType = val),
+                ),
+            ],
 
             const SizedBox(height: 24),
             FilledButton(

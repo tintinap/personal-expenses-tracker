@@ -7,7 +7,7 @@ void main() {
     final start = DateTime(2026, 1, 1, 0, 0, 0); // Thursday, Jan 1
     
     // Helper to create dummy budget data
-    BudgetData _createBudget(String periodType, bool isRecurring) {
+    BudgetData createBudget(String periodType, bool isRecurring) {
       return BudgetData(
         id: 'test-id',
         scopeType: 'all',
@@ -29,7 +29,7 @@ void main() {
     }
 
     test('Weekly recurring budget periods', () {
-      final budget = _createBudget('weekly', true);
+      final budget = createBudget('weekly', true);
       
       // Period 0: Jan 1 - Jan 7 (end of Jan 7)
       final period0 = BudgetPeriodCalculator.currentPeriod(budget, today: DateTime(2026, 1, 2));
@@ -49,7 +49,7 @@ void main() {
     });
 
     test('Fortnightly recurring budget periods (14 days)', () {
-      final budget = _createBudget('fortnightly', true);
+      final budget = createBudget('fortnightly', true);
       
       // Period 0: Jan 1 - Jan 14 (end of Jan 14)
       final period0 = BudgetPeriodCalculator.currentPeriod(budget, today: DateTime(2026, 1, 10));
@@ -70,7 +70,7 @@ void main() {
     });
 
     test('Monthly recurring budget periods', () {
-      final budget = _createBudget('monthly', true);
+      final budget = createBudget('monthly', true);
       
       // Period 0: Jan 1 - Jan 31
       final period0 = BudgetPeriodCalculator.currentPeriod(budget, today: DateTime(2026, 1, 15));
@@ -92,7 +92,7 @@ void main() {
     });
 
     test('Non-recurring expiration logic', () {
-      final budget = _createBudget('fortnightly', false); // Start: Jan 1
+      final budget = createBudget('fortnightly', false); // Start: Jan 1
       
       expect(BudgetPeriodCalculator.isExpired(budget, today: DateTime(2026, 1, 10)), false);
       expect(BudgetPeriodCalculator.isExpired(budget, today: DateTime(2026, 1, 15)), true); // Jan 14 end

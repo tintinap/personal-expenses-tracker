@@ -8,7 +8,7 @@ import '../../../core/database/database.dart';
 
 
 Future<void> clearAndMockData(AppDatabase db) async {
-  final uuid = const Uuid();
+  const uuid = Uuid();
   final random = Random();
 
   // Clear existing data
@@ -63,7 +63,7 @@ Future<void> clearAndMockData(AppDatabase db) async {
   final numDays = now.difference(twoMonthsAgo).inDays;
   final transactionsToInsert = <TransactionsCompanion>[];
 
-  final categoryCount = 11; // default-cat-0 to default-cat-10
+  const categoryCount = 11; // default-cat-0 to default-cat-10
 
   for (int i = 0; i < 120; i++) {
     // Random date within the last 2 months
@@ -117,7 +117,7 @@ Future<void> clearAndMockData(AppDatabase db) async {
       // EXCHANGE (AUD to USD)
       final exchangeEventId = uuid.v4();
       final audAmount = 100.0 + random.nextDouble() * 500.0; // OUT
-      final exchangeRate = 1.5; // dummy AUD/USD rate implies 1 USD = 1.5 AUD
+      const exchangeRate = 1.5; // dummy AUD/USD rate implies 1 USD = 1.5 AUD
       final usdAmount = audAmount / exchangeRate; // IN
 
       // OUT transaction

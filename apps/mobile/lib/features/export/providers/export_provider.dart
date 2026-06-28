@@ -210,11 +210,11 @@ class ExportService {
           TextCellValue(''),
           TextCellValue(''),
           TextCellValue(''),
-          IntCellValue(0),
-          DoubleCellValue(0),
+          const IntCellValue(0),
+          const DoubleCellValue(0),
           TextCellValue(''),
-          DoubleCellValue(0),
-          DoubleCellValue(0),
+          const DoubleCellValue(0),
+          const DoubleCellValue(0),
           TextCellValue(''),
           TextCellValue(''),
         ]);
@@ -395,14 +395,14 @@ class ExportService {
     DateTime from,
     DateTime to,
   ) {
-    final fortnightKeyFn = (DateTime d) {
+    String fortnightKeyFn(DateTime d) {
       final yearStart = DateTime(d.year, 1, 1);
       final dayOfYear = d.difference(yearStart).inDays;
       final fortnightIndex = dayOfYear ~/ 14;
       final fortnightStart =
           yearStart.add(Duration(days: fortnightIndex * 14));
       return _fmtDate(fortnightStart);
-    };
+    }
     _buildPeriodSummarySheet(
       excel: excel,
       sheetName: 'Fortnightly',

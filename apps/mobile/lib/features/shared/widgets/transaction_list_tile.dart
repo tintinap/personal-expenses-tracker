@@ -254,7 +254,11 @@ class TransactionListTile extends ConsumerWidget {
     final color = isIncome ? Colors.green : theme.textTheme.bodyLarge?.color;
     final prefix = isIncome ? '+' : '-';
     final categories = ref.watch(categoryListProvider).valueOrNull ?? [];
-    final hierarchy = _resolveCategoryHierarchy(categories, tx.categoryId);
+    // Income transactions don't use categories — ignore any stale categoryId
+    // so existing income transactions still show the correct income icon.
+    final hierarchy = isIncome
+        ? (display: null, sub: null)
+        : _resolveCategoryHierarchy(categories, tx.categoryId);
     final display = hierarchy.display;
     final viewCurrency = ref.watch(viewCurrencyProvider);
 

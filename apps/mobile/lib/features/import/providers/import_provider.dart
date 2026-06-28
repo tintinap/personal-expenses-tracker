@@ -839,10 +839,7 @@ class ImportNotifier extends StateNotifier<ImportState> {
     String? resolvedParentId;
     if (parentName != null && parentName.isNotEmpty) {
       resolvedParentId = _resolveCategoryId(parentName, catMap, categories);
-      if (resolvedParentId == null) {
-        // Parent also doesn't exist — create it as a top-level category
-        resolvedParentId = _autoCreateCategory(pendingCats, parentName, catMap, categories);
-      }
+      resolvedParentId ??= _autoCreateCategory(pendingCats, parentName, catMap, categories);
     }
 
     final id = const Uuid().v4();
@@ -907,7 +904,7 @@ class ImportNotifier extends StateNotifier<ImportState> {
       if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
       return p;
     }
-    final q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
     final p = 2 * l - q;
     final r = (hueToRgb(p, q, h + 1 / 3) * 255).round();
     final g = (hueToRgb(p, q, h) * 255).round();

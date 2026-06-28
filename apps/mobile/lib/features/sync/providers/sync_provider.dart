@@ -138,9 +138,9 @@ class SyncNotifier extends StateNotifier<SyncState> {
     final categories = await db.select(db.categories).get();
     for (final c in categories) {
       await db.into(db.syncQueue).insert(SyncQueueCompanion(
-        recordType: drift.Value('category'),
+        recordType: const drift.Value('category'),
         recordId: drift.Value(c.id),
-        operation: drift.Value('insert'),
+        operation: const drift.Value('insert'),
         payload: drift.Value(jsonEncode({
           'name': c.name,
           'colourHex': c.colourHex,
@@ -157,9 +157,9 @@ class SyncNotifier extends StateNotifier<SyncState> {
     final budgets = await db.select(db.budgets).get();
     for (final b in budgets) {
       await db.into(db.syncQueue).insert(SyncQueueCompanion(
-        recordType: drift.Value('budget'),
+        recordType: const drift.Value('budget'),
         recordId: drift.Value(b.id),
-        operation: drift.Value('insert'),
+        operation: const drift.Value('insert'),
         payload: drift.Value(jsonEncode({
           'name': b.name,
           'scopeType': b.scopeType,
@@ -179,9 +179,9 @@ class SyncNotifier extends StateNotifier<SyncState> {
     final transactions = await db.select(db.transactions).get();
     for (final t in transactions) {
       await db.into(db.syncQueue).insert(SyncQueueCompanion(
-        recordType: drift.Value('transaction'),
+        recordType: const drift.Value('transaction'),
         recordId: drift.Value(t.id),
-        operation: drift.Value('insert'),
+        operation: const drift.Value('insert'),
         payload: drift.Value(jsonEncode({
           'transactionType': t.transactionType,
           'amountBase': t.amountBase,
