@@ -9,6 +9,7 @@ const navItems = [
   { label: 'Wallets', href: '/wallets', icon: '👛' },
   { label: 'Reports', href: '/reports', icon: '📊' },
   { label: 'Budgets', href: '/budgets', icon: '🎯' },
+  { label: 'Import', href: '/import', icon: '📥' },
   { label: 'Settings', href: '/settings', icon: '⚙️' },
 ];
 
