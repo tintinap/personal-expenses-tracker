@@ -1,38 +1,41 @@
 # Product Requirements Document
+
 ## Project PET — Personal Expense Tracker (Monorepo)
 
-**Version:** 3.1
-**Last updated:** April 2026
-**Status:** Ready for codegen
+**Version:** 5.1.0
+**Last updated:** 21 June 2026
+**Status:** Active
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#1-overview)
-2. [Goals & success metrics](#2-goals--success-metrics)
+2. [Goals &amp; success metrics](#2-goals--success-metrics)
 3. [Target users](#3-target-users)
-4. [Platform & tech stack](#4-platform--tech-stack)
+4. [Platform &amp; tech stack](#4-platform--tech-stack)
 5. [App architecture overview](#5-app-architecture-overview)
-6. [Screen map & navigation](#6-screen-map--navigation)
-7. [Authentication & account model](#7-authentication--account-model)
-8. [Expense entry & management](#8-expense-entry--management)
+6. [Screen map &amp; navigation](#6-screen-map--navigation)
+7. [Authentication &amp; account model](#7-authentication--account-model)
+8. [Expense entry &amp; management](#8-expense-entry--management)
 9. [Categories](#9-categories)
 10. [Currency handling](#10-currency-handling)
-11. [Currency income & exchange events](#11-currency-income--exchange-events)
+11. [Currency income &amp; exchange events](#11-currency-income--exchange-events)
 12. [Time period views](#12-time-period-views)
 13. [Budget alerts](#13-budget-alerts)
 14. [Visualisation dashboard](#14-visualisation-dashboard)
 15. [Offline-first sync architecture](#15-offline-first-sync-architecture)
 16. [Google Sheets integration](#16-google-sheets-integration)
 17. [Excel export](#17-excel-export)
-18. [Theming (light & dark mode)](#18-theming-light--dark-mode)
-19. [Error states & edge cases](#19-error-states--edge-cases)
+18. [Theming (light &amp; dark mode)](#18-theming-light--dark-mode)
+19. [Error states &amp; edge cases](#19-error-states--edge-cases)
 20. [Data models](#20-data-models)
 21. [Riverpod providers](#21-riverpod-providers)
-22. [User stories & acceptance criteria](#22-user-stories--acceptance-criteria)
+22. [User stories &amp; acceptance criteria](#22-user-stories--acceptance-criteria)
 23. [Non-functional requirements](#23-non-functional-requirements)
 24. [Out of scope (v1)](#24-out-of-scope-v1)
+25. [Excel Import](#25-excel-import)
+26. [View Currency Display Improvements (v5.1.0)](#26-view-currency-display-improvements-v510)
 
 ---
 
@@ -63,15 +66,15 @@ The **base currency** is user-configurable (default: **AUD**). All stored amount
 
 ### Success metrics
 
-| Metric | Target |
-|---|---|
-| Time to log one expense | < 10 seconds |
-| Offline entry → sync on reconnect | 100% of pending records synced |
-| Budget alert delivery | Fires once at 75%, once at 90%, once at 100% per period |
-| Google Sheet write latency (online) | < 5 seconds after sync to backend |
-| App cold start (mobile) | < 2 seconds on mid-range device |
-| Web page load (initial) | < 3 seconds |
-| Crash rate | < 0.5% of sessions |
+| Metric                              | Target                                                  |
+| ----------------------------------- | ------------------------------------------------------- |
+| Time to log one expense             | < 10 seconds                                            |
+| Offline entry → sync on reconnect  | 100% of pending records synced                          |
+| Budget alert delivery               | Fires once at 75%, once at 90%, once at 100% per period |
+| Google Sheet write latency (online) | < 5 seconds after sync to backend                       |
+| App cold start (mobile)             | < 2 seconds on mid-range device                         |
+| Web page load (initial)             | < 3 seconds                                             |
+| Crash rate                          | < 0.5% of sessions                                      |
 
 ---
 
@@ -80,6 +83,7 @@ The **base currency** is user-configurable (default: **AUD**). All stored amount
 **Primary:** Individual users tracking personal daily expenses with occasional multi-currency spending (e.g. travel abroad, online purchases in foreign currencies). The app supports any base currency, making it suitable for users worldwide. Default base currency is AUD.
 
 **Key use cases:**
+
 - Logging coffee, groceries, transport on the go (mobile, offline)
 - Reviewing weekly/monthly spend trends on a laptop (web)
 - Checking exchange-rate-adjusted totals when travelling
@@ -91,52 +95,52 @@ The **base currency** is user-configurable (default: **AUD**). All stored amount
 
 ### Monorepo structure
 
-| App | Technology | Location |
-|---|---|---|
-| Mobile | Flutter (iOS & Android) | `apps/mobile/` |
-| Web | Next.js 16 (App Router, Tailwind, i18n: EN + TH) | `apps/web/` |
-| Backend API | NestJS 11 (TypeScript) | `apps/api/` |
+| App         | Technology                                       | Location         |
+| ----------- | ------------------------------------------------ | ---------------- |
+| Mobile      | Flutter (iOS & Android)                          | `apps/mobile/` |
+| Web         | Next.js 16 (App Router, Tailwind, i18n: EN + TH) | `apps/web/`    |
+| Backend API | NestJS 11 (TypeScript)                           | `apps/api/`    |
 
 ### Mobile app stack
 
-| Layer | Choice | Notes |
-|---|---|---|
-| Framework | Flutter | iOS & Android from one codebase |
-| Local database | **SQLite via `drift`** | Source of truth on device; offline-first |
-| State management | **Riverpod** | `flutter_riverpod` + `riverpod_annotation` |
-| Navigation | **`go_router`** | Declarative routing with `ShellRoute` for bottom nav |
-| HTTP | **`dio`** | With interceptors for auth (JWT) + retry |
-| Secure storage | `flutter_secure_storage` | JWT tokens only |
-| Exchange rates | Frankfurter API (`api.frankfurter.app`) | Free, ECB-backed, no API key required |
+| Layer            | Choice                                    | Notes                                                  |
+| ---------------- | ----------------------------------------- | ------------------------------------------------------ |
+| Framework        | Flutter                                   | iOS & Android from one codebase                        |
+| Local database   | **SQLite via `drift`**            | Source of truth on device; offline-first               |
+| State management | **Riverpod**                        | `flutter_riverpod` + `riverpod_annotation`         |
+| Navigation       | **`go_router`**                   | Declarative routing with `ShellRoute` for bottom nav |
+| HTTP             | **`dio`**                         | With interceptors for auth (JWT) + retry               |
+| Secure storage   | `flutter_secure_storage`                | JWT tokens only                                        |
+| Exchange rates   | Frankfurter API (`api.frankfurter.app`) | Free, ECB-backed, no API key required                  |
 
 ### Backend API stack
 
-| Layer | Choice | Notes |
-|---|---|---|
-| Framework | NestJS 11 | TypeScript, modular |
-| ORM | **Prisma 6** | PostgreSQL schema management + migrations |
-| Database | **PostgreSQL 16** | Cloud source of truth |
-| Auth | **Passport.js + JWT** | `@nestjs/passport` + `@nestjs/jwt` |
-| OAuth providers | Google OAuth 2.0 + Apple Sign-In | Via Passport strategies |
-| Google Sheets | Google Sheets API v4 | Server-side mirror; backend writes to Sheet on sync |
-| Push notifications | Firebase Cloud Messaging (FCM) | Budget alerts (mobile only, v1) |
+| Layer              | Choice                           | Notes                                               |
+| ------------------ | -------------------------------- | --------------------------------------------------- |
+| Framework          | NestJS 11                        | TypeScript, modular                                 |
+| ORM                | **Prisma 6**               | PostgreSQL schema management + migrations           |
+| Database           | **PostgreSQL 16**          | Cloud source of truth                               |
+| Auth               | **Passport.js + JWT**      | `@nestjs/passport` + `@nestjs/jwt`              |
+| OAuth providers    | Google OAuth 2.0 + Apple Sign-In | Via Passport strategies                             |
+| Google Sheets      | Google Sheets API v4             | Server-side mirror; backend writes to Sheet on sync |
+| Push notifications | Firebase Cloud Messaging (FCM)   | Budget alerts (mobile only, v1)                     |
 
 ### Web app stack
 
-| Layer | Choice | Notes |
-|---|---|---|
-| Framework | Next.js 16 | App Router, server components |
-| Styling | Tailwind CSS | Same design tokens as mobile |
-| i18n | `next-intl` | EN + TH locales |
-| HTTP | Fetch API | Calls NestJS API directly |
-| Auth | JWT (stored in httpOnly cookies) | Received from NestJS after OAuth |
+| Layer     | Choice                           | Notes                            |
+| --------- | -------------------------------- | -------------------------------- |
+| Framework | Next.js 16                       | App Router, server components    |
+| Styling   | Tailwind CSS                     | Same design tokens as mobile     |
+| i18n      | `next-intl`                    | EN + TH locales                  |
+| HTTP      | Fetch API                        | Calls NestJS API directly        |
+| Auth      | JWT (stored in httpOnly cookies) | Received from NestJS after OAuth |
 
 ### Infrastructure
 
-| Layer | Choice | Notes |
-|---|---|---|
-| Containerisation | Docker Compose | PostgreSQL + NestJS + Next.js |
-| Toolchain | MISE | `mise run setup`, `mise run dev` |
+| Layer            | Choice         | Notes                                |
+| ---------------- | -------------- | ------------------------------------ |
+| Containerisation | Docker Compose | PostgreSQL + NestJS + Next.js        |
+| Toolchain        | MISE           | `mise run setup`, `mise run dev` |
 
 ### Dependency decisions (closed)
 
@@ -249,13 +253,13 @@ expense_app/
 
 Bottom navigation bar with 4 tabs using `ShellRoute` and a notched center FAB. Persists across the app. Hidden only when add/edit sheets are open.
 
-| Tab index | Label | Icon | Route |
-|---|---|---|---|
-| 0 | Home | `home_outlined` | `/` |
-| 1 | Wallets | `account_balance_wallet_outlined` | `/wallets` |
-| — | *(FAB notch)* | `add` | *(opens Add Transaction sheet)* |
-| 2 | Budgets | `savings_outlined` | `/budgets` |
-| 3 | Reports | `bar_chart` | `/reports` |
+| Tab index | Label           | Icon                                | Route                             |
+| --------- | --------------- | ----------------------------------- | --------------------------------- |
+| 0         | Home            | `home_outlined`                   | `/`                             |
+| 1         | Wallets         | `account_balance_wallet_outlined` | `/wallets`                      |
+| —        | *(FAB notch)* | `add`                             | *(opens Add Transaction sheet)* |
+| 2         | Budgets         | `savings_outlined`                | `/budgets`                      |
+| 3         | Reports         | `bar_chart`                       | `/reports`                      |
 
 A floating `+` FAB sits in the centre notch of the `BottomAppBar` and opens the Add Transaction bottom sheet.
 
@@ -265,60 +269,76 @@ A floating `+` FAB sits in the centre notch of the `BottomAppBar` and opens the 
 
 Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four sections as mobile.
 
-| Section | Route |
-|---|---|
+| Section          | Route                   |
+| ---------------- | ----------------------- |
 | Dashboard (Home) | `/[locale]/dashboard` |
-| Wallets | `/[locale]/wallets` |
-| Reports | `/[locale]/reports` |
-| Budgets | `/[locale]/budgets` |
-| Settings | `/[locale]/settings` |
+| Wallets          | `/[locale]/wallets`   |
+| Reports          | `/[locale]/reports`   |
+| Budgets          | `/[locale]/budgets`   |
+| Settings         | `/[locale]/settings`  |
 
 ### Screen inventory
 
 #### Home (`/`)
+
 - Period selector (segmented control: Daily / Weekly / Fortnightly / Monthly / Yearly)
 - Period navigation (← label →, tap label to date-pick)
-- Summary cards: total spent, top category, budget remaining, transaction count
+- Summary cards: **base currency** total spent (primary), view currency equivalent below in smaller text (secondary, hidden when base == view)
+- Top category card: category name (primary), base currency amount spent (secondary)
 - Currency balance bar: horizontal scrollable chips showing each currency balance (tappable → opens Currency Wallets screen)
 - Expense list for selected period (grouped by date)
-- Each expense row: category colour dot, category name, note (truncated), amount in view currency
+- Each expense row: category colour dot, category name, note (truncated), original amount; **view currency estimate** shown underneath if currencies differ and a cached rate is available
 - Swipe-left on row: delete (with confirmation); swipe-right: edit
+- Donut chart: shows **base currency only** (no view currency overlay on home screen)
 
 #### Add/Edit Expense (bottom sheet on mobile, modal on web)
+
 - Auto-focuses amount field on open
-- Fields: Amount, Currency (picker, defaults to last used), Date (defaults to today), Category (picker), Note (optional, max 200 chars)
+- Fields: Amount, Currency (picker, defaults to last used), Date (defaults to today), Time (defaults to current time, follows system 12h/24h format), Category (picker), Note (optional, max 200 chars)
 - "Save" button — disabled until Amount and Category are filled
 - Shows converted base currency equivalent below amount field in real time
 
 #### Transaction Detail (bottom sheet — tap any row in the transaction list)
+
 - Opened by tapping a transaction row in any list (Home, Currency Detail, Reports, etc.)
 - Shows all transaction fields in a read-only detail view inside a bottom sheet
-- Edit and Delete action buttons at the bottom
+- **No Edit or Delete action buttons** — these are accessed via swipe on the list tile
 - **Sync status badge** (`pending` / `synced` / `conflict`) — mobile only, shown prominently near the top
 - Shows whether exchange rate was estimated (offline) with an "Estimated rate" label
+- **View currency estimate** shown next to the amount if view currency differs from base currency, including the conversion rate used (e.g. `≈ + THB 1,234.56 (1 AUD = 24.50 THB)`)
 - For exchange transactions: shows both sides of the linked pair
 
+#### Dashboard Detail (tap "Spend by Category" →)
+
+- Full-screen donut + expanded category breakdown
+- Summary cards (Total Spent, Net Income, Top Category) show **base currency** as primary value and **view currency** as secondary (≈ prefix) when base ≠ view
+- Donut chart now shows **all currencies** (not filtered to base currency), with optional view currency overlay
+
 #### Reports (`/reports`)
+
 - Same period selector as Home
-- Donut chart: spend by category
+- Donut chart: spend by category — shows **base currency** with view currency overlay beneath center value when base ≠ view
 - Bar chart: daily spend within period
 - Line chart: rolling spend trend
 - Period comparison card: this period vs previous (absolute + %)
 - List of categories with spend amount and % of total
 
 #### Budgets (`/budgets`)
+
 - List of active budgets (global first, then per-category)
 - Each card: name, period type, progress bar (green/amber/red), amount used / limit
 - "+ Add budget" button → Add Budget sheet
 - Tap card → Budget Detail
 
 #### Budget Detail (`/budgets/:id`)
+
 - Budget config (editable inline or via edit sheet)
 - Full progress breakdown (percentage, spent, remaining, progress bar)
 - Configuration section: period mode, recurring toggle, scope, categories, current period dates
 - **Period history** (recurring budgets only): inline scrollable list of all past completed periods showing date range, amount spent, limit, and percentage — most recent first
 
 #### Settings (`/settings` — accessed via gear icon in AppBar, not bottom nav)
+
 - Account section: sign-in status (Google or Apple), sign out, delete account
 - Google Sheets section: connect/disconnect (only available for Google accounts), linked sheet name
 - Export section: "Export as Excel (.xlsx)" button — available to all signed-in users and local-mode users
@@ -327,7 +347,8 @@ Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four secti
 - About: version, licenses
 
 #### Currency Wallets (`/wallets`)
-- Overview card: **total portfolio value** — sum of all currency balances converted to base currency using today's rate
+
+- Overview card: **total portfolio value** — sum of all currency balances converted to base currency using today's rate; view currency equivalent shown in smaller text below when base ≠ view
 - List of currency cards, one per currency with non-zero balance (or all tracked currencies)
 - Each currency card shows:
   - Currency flag + ISO code (e.g. 🇹🇭 THB)
@@ -340,6 +361,7 @@ Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four secti
 - Manual balance adjustment button (for correcting discrepancies — adds a `balance_adjustment` note)
 
 #### Currency Detail (`/wallets/:currency`)
+
 - Full transaction history filtered to that currency only
 - Summary stats at top:
   - Total received (income events)
@@ -350,6 +372,7 @@ Sidebar navigation (desktop) / hamburger menu (mobile viewport). Same four secti
 - Each row shows: transaction type icon, amount, note, date
 
 #### Category Management (`/settings/categories`)
+
 - List of all categories (default + custom), grouped hierarchically: parent categories with their sub-categories indented below
 - Toggle visibility (hide/show)
 - Tap to edit (rename, change colour, or assign/change parent category)
@@ -379,6 +402,7 @@ Authentication is handled entirely by the **NestJS backend** using Passport.js s
 ```
 
 **JWT flow:**
+
 1. Client initiates OAuth (Google or Apple) → redirected to provider
 2. Provider callback hits NestJS endpoint (`/auth/google/callback` or `/auth/apple/callback`)
 3. NestJS validates the OAuth token, creates/finds user in PostgreSQL
@@ -391,6 +415,7 @@ Authentication is handled entirely by the **NestJS backend** using Passport.js s
 ### Modes
 
 **Local mode (no account) — mobile only**
+
 - Full app functionality, zero sign-in friction
 - All data in local SQLite only
 - No cross-device sync
@@ -399,6 +424,7 @@ Authentication is handled entirely by the **NestJS backend** using Passport.js s
 - Sign-in prompt shown once on first launch as a dismissible banner (not a blocking gate)
 
 **Signed-in mode — Google account**
+
 - Sign in via Google OAuth through NestJS backend
 - Mobile: local SQLite remains the primary write target; syncs to backend when online
 - Web: reads/writes directly to NestJS API (online only)
@@ -408,6 +434,7 @@ Authentication is handled entirely by the **NestJS backend** using Passport.js s
 - On sign-out: local data retained (mobile); cloud data remains; writes stop
 
 **Signed-in mode — Apple account**
+
 - Sign in via Apple Sign-In through NestJS backend
 - Same sync behaviour as Google account
 - Google Sheets integration **unavailable** — requires a linked Google account
@@ -417,16 +444,16 @@ Authentication is handled entirely by the **NestJS backend** using Passport.js s
 
 ### Feature matrix by account type
 
-| Feature | Local mode (mobile) | Apple Sign-In | Google Sign-In |
-|---|---|---|---|
-| Expense logging | ✅ | ✅ | ✅ |
-| Offline-first (mobile) | ✅ | ✅ | ✅ |
-| Cloud sync (NestJS) | ❌ | ✅ | ✅ |
-| Cross-device sync | ❌ | ✅ | ✅ |
-| Web app access | ❌ | ✅ | ✅ |
-| Google Sheets mirror | ❌ | ❌ | ✅ |
-| Excel export | ✅ | ✅ | ✅ |
-| Budget alerts (FCM) | ✅ | ✅ | ✅ |
+| Feature                | Local mode (mobile) | Apple Sign-In | Google Sign-In |
+| ---------------------- | ------------------- | ------------- | -------------- |
+| Expense logging        | ✅                  | ✅            | ✅             |
+| Offline-first (mobile) | ✅                  | ✅            | ✅             |
+| Cloud sync (NestJS)    | ❌                  | ✅            | ✅             |
+| Cross-device sync      | ❌                  | ✅            | ✅             |
+| Web app access         | ❌                  | ✅            | ✅             |
+| Google Sheets mirror   | ❌                  | ❌            | ✅             |
+| Excel export           | ✅                  | ✅            | ✅             |
+| Budget alerts (FCM)    | ✅                  | ✅            | ✅             |
 
 ### Auth flow
 
@@ -468,6 +495,7 @@ src/auth/
 ### Google Sheets upsell for Apple users
 
 When an Apple Sign-In user navigates to Settings → Google Sheets, show an informational banner:
+
 > "Google Sheets sync requires a Google account. Sign in with Google to enable automatic mirroring, or use Excel export below."
 
 No blocking gate — the export buttons are immediately below the banner.
@@ -494,13 +522,14 @@ No blocking gate — the export buttons are immediately below the banner.
 
 ### Add expense fields
 
-| Field | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| Amount | Decimal input | Yes | Empty | Auto-focused on sheet open |
-| Currency | Picker | Yes | Last used (or base currency) | Shows ISO code + flag |
-| Date | Date picker | Yes | Today | Can be backdated |
-| Category | Picker | Yes | Last used | From active categories |
-| Note | Text field | No | Empty | Max 200 chars |
+| Field    | Type                     | Required | Default                      | Notes                                                                         |
+| -------- | ------------------------ | -------- | ---------------------------- | ----------------------------------------------------------------------------- |
+| Amount   | Decimal input            | Yes      | Empty                        | Auto-focused on sheet open                                                    |
+| Currency | Picker                   | Yes      | Last used (or base currency) | Shows ISO code + flag                                                         |
+| Date     | Date picker              | Yes      | Today                        | Can be backdated or set to a future date                                      |
+| Time     | Time picker (input mode) | Yes      | Current time                 | Follows system 12h (AM/PM) or 24h format; opens in text-input mode by default |
+| Category | Picker                   | Yes      | Last used                    | From active categories                                                        |
+| Note     | Text field               | No       | Empty                        | Max 200 chars                                                                 |
 
 ### Entry behaviour
 
@@ -557,19 +586,19 @@ No blocking gate — the export buttons are immediately below the banner.
 
 ### Default categories
 
-| Category | Colour hex |
-|---|---|
-| Food & dining | `#378ADD` |
-| Groceries | `#4CAF50` |
-| Transport | `#FF7043` |
-| Health & medical | `#E91E8C` |
-| Shopping & retail | `#9C27B0` |
-| Bills & utilities | `#009688` |
-| Entertainment | `#FFC107` |
-| Travel | `#FF8F00` |
-| Subscriptions | `#F44336` |
-| Education | `#455A64` |
-| Personal care | `#4FC3F7` |
+| Category              | Colour hex  |
+| --------------------- | ----------- |
+| Food & dining         | `#378ADD` |
+| Groceries             | `#4CAF50` |
+| Transport             | `#FF7043` |
+| Health & medical      | `#E91E8C` |
+| Shopping & retail     | `#9C27B0` |
+| Bills & utilities     | `#009688` |
+| Entertainment         | `#FFC107` |
+| Travel                | `#FF8F00` |
+| Subscriptions         | `#F44336` |
+| Education             | `#455A64` |
+| Personal care         | `#4FC3F7` |
 | Other / uncategorised | `#9E9E9E` |
 
 ### Customisation rules
@@ -611,15 +640,15 @@ No blocking gate — the export buttons are immediately below the banner.
 
 All expenses are **stored in the user's base currency** (default: AUD). The base currency is configurable in Settings → Preferences. Original currency and original amount are also stored for auditability. Display currency is a view-layer concern only — stored data is never rewritten when exchange rates change.
 
-**Changing base currency:** When the user changes their base currency (e.g. AUD → THB), all existing `amount_base` values are re-converted from `original_amount` + `original_currency` using the latest Frankfurter rate for each transaction's date. This is a background operation; a progress indicator is shown. The exchange rate cache is also updated for the new base currency.
+**Changing base currency:** When the user changes their base currency (e.g. AUD → THB), all existing `amount_base` values are re-converted from `original_amount` + `original_currency` using the latest Frankfurter rate for each transaction's date. This is a background operation; a progress indicator is shown. The exchange rate cache is also updated for the new base currency. On app startup, a background `recalculateBaseAmounts` pass is also run to ensure consistency.
 
 ### Exchange rate source
 
 **Frankfurter API** (`https://api.frankfurter.app`) — free, no API key, ECB-backed
 
-| Use case | Consumer | Endpoint |
-|---|---|---|
-| Today's rate | Mobile (direct) or NestJS (proxy) | `GET /latest?from={currency}&to={base_currency}` |
+| Use case        | Consumer                          | Endpoint                                                 |
+| --------------- | --------------------------------- | -------------------------------------------------------- |
+| Today's rate    | Mobile (direct) or NestJS (proxy) | `GET /latest?from={currency}&to={base_currency}`       |
 | Historical rate | Mobile (direct) or NestJS (proxy) | `GET /{YYYY-MM-DD}?from={currency}&to={base_currency}` |
 
 **NestJS exchange rate module**: The backend also caches exchange rates in PostgreSQL. When the mobile app syncs a transaction with a rate, the backend stores it. The web app fetches rates from the NestJS API (which proxies/caches Frankfurter).
@@ -627,12 +656,16 @@ All expenses are **stored in the user's base currency** (default: AUD). The base
 ### Caching strategy
 
 **Mobile (Drift/SQLite):**
+
 1. On first use of a currency pair on a given date → fetch from Frankfurter → cache in local `exchange_rates` table
 2. Same pair + same date → use cached rate (no API call)
 3. New day → fetch fresh rate and cache
 4. API timeout (5s) or offline → use last known cached rate → set `rate_estimated = true`
 
+New in v5.1.0: A **DB-only cache lookup** (`getForDateOrRecent`) is available for UI display purposes. This returns `null` instead of the 1.0 fallback when no rate is cached, allowing the UI to hide view currency estimates rather than showing a misleading 1:1 conversion.
+
 **Backend (Prisma/PostgreSQL):**
+
 1. Exchange rates cached in `exchange_rates` table
 2. Web app requests rates from NestJS → NestJS checks cache → fetches from Frankfurter if missing
 3. Synced mobile transactions include their rate, which backend stores
@@ -648,7 +681,10 @@ Any of these currencies can be set as the base currency. The remaining currencie
 - User can toggle display currency at any time in Settings
 - Persistent setting (not per-session)
 - All dashboard totals, lists, and report amounts respect selected view currency
-- Conversion for display uses today's cached rate (not the historical rate of each expense)
+- **Summary cards and totals** display the base currency amount as the primary value, with the view currency equivalent beneath in smaller text (hidden when base == view)
+- **Transaction list tiles** display the view currency estimate beneath the original amount, using the **historical cached rate for the transaction's date** (not today's rate); hidden if no rate is cached
+- **Donut chart center** on the Home screen shows **base currency only** (no view currency overlay)
+- **Donut chart center** on the Reports screen shows base currency with view currency below when base ≠ view
 - Stored data is never modified
 
 ### Acceptance criteria
@@ -663,8 +699,10 @@ Any of these currencies can be set as the base currency. The remaining currencie
 - [ ] User can change base currency in Settings → Preferences
 - [ ] Changing base currency re-converts all `amount_base` values using latest rates
 - [ ] Base currency change shows a progress indicator during re-conversion
+- [ ] Transaction list tile view estimate uses historical cached rate at transaction date; hidden if rate unavailable
+- [ ] Summary cards show base currency primary, view currency secondary (≈ prefix)
+- [ ] When base == view, no secondary row is shown anywhere
 
----
 ---
 
 ## 11. Currency income & exchange events
@@ -680,31 +718,34 @@ These events are not spending — they are balance movements. Treating them as e
 
 ### Transaction type taxonomy
 
-| Type | `transaction_type` value | Effect on ledger |
-|---|---|---|
-| Expense | `expense` | Reduces base currency balance |
-| Currency income | `currency_income` | Records foreign currency received; no base currency spending impact |
-| Currency exchange (out) | `currency_exchange_out` | Reduces source currency balance |
-| Currency exchange (in) | `currency_exchange_in` | Increases target currency balance; auto-logged as base currency income when applicable |
+| Type                    | `transaction_type` value | Effect on ledger                                                                       |
+| ----------------------- | -------------------------- | -------------------------------------------------------------------------------------- |
+| Expense                 | `expense`                | Reduces base currency balance                                                          |
+| Currency income         | `currency_income`        | Records foreign currency received; no base currency spending impact                    |
+| Currency exchange (out) | `currency_exchange_out`  | Reduces source currency balance                                                        |
+| Currency exchange (in)  | `currency_exchange_in`   | Increases target currency balance; auto-logged as base currency income when applicable |
 
 ---
 
 ### 11a. Currency income
 
 #### What it represents
+
 User received foreign currency cash. Example: just landed in Bangkok, withdrew 20,000 THB from ATM.
 
 #### Entry fields
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| Amount | Decimal | Yes | Amount received in foreign currency |
-| Currency | Picker | Yes | The currency received (e.g. THB) |
-| Date | Date picker | Yes | Defaults to today |
-| Source | Text | No | e.g. "ATM withdrawal", "Gift from friend" |
-| Note | Text | No | Max 200 chars |
+| Field    | Type                     | Required | Notes                                                   |
+| -------- | ------------------------ | -------- | ------------------------------------------------------- |
+| Amount   | Decimal                  | Yes      | Amount received in foreign currency                     |
+| Currency | Picker                   | Yes      | The currency received (e.g. THB)                        |
+| Date     | Date picker              | Yes      | Defaults to today; future dates allowed                 |
+| Time     | Time picker (input mode) | Yes      | Defaults to current time; follows system 12h/24h format |
+| Source   | Text                     | No       | e.g. "ATM withdrawal", "Gift from friend"               |
+| Note     | Text                     | No       | Max 200 chars                                           |
 
 #### Storage
+
 - **Mobile (Drift)**: Stored in local `transactions` table with `transaction_type = currency_income`
 - **Backend (Prisma)**: Stored in PostgreSQL `transactions` table after sync
 - `original_currency` = the received currency (e.g. THB)
@@ -713,36 +754,45 @@ User received foreign currency cash. Example: just landed in Bangkok, withdrew 2
 - `rate_estimated = true` if offline
 
 #### Display in list
+
 Distinct visual style: **green left border**, `↓ Income` label.
 Example row:
+
 ```
 ↓ +20,000 THB            ATM withdrawal
               est. A$850.00             19 Apr 2026
 ```
 
 #### Effect on running balance
+
 Adds to the user's THB running balance. Informational only — does not block any actions.
+
+#### Dashboard income totals
+
+`currency_income` transactions are included in the Net Income summary. `currency_exchange_in` transactions are **excluded** from income totals to avoid double-counting exchange events.
 
 ---
 
 ### 11b. Currency exchange
 
 #### What it represents
+
 User physically exchanges currency at a money changer, bank, or airport booth.
 Example: exchange 15,000 THB → AUD and receive A$620 at the counter.
 
 #### Entry fields
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| From amount | Decimal | Yes | Amount given away (e.g. 15,000) |
-| From currency | Picker | Yes | Source currency (e.g. THB) |
-| To amount | Decimal | Yes | Amount received (e.g. 620) |
-| To currency | Picker | Yes | Target currency (e.g. AUD) |
-| Date | Date picker | Yes | Defaults to today |
-| Exchange rate | Calculated / editable | Yes | Auto-filled as `to_amount ÷ from_amount`; always visible |
-| Rate source | Toggle | Yes | "Custom (what I got)" or "Use Frankfurter rate" |
-| Note | Text | No | e.g. "Superrich exchange booth" |
+| Field         | Type                     | Required | Notes                                                       |
+| ------------- | ------------------------ | -------- | ----------------------------------------------------------- |
+| From amount   | Decimal                  | Yes      | Amount given away (e.g. 15,000)                             |
+| From currency | Picker                   | Yes      | Source currency (e.g. THB)                                  |
+| To amount     | Decimal                  | Yes      | Amount received (e.g. 620)                                  |
+| To currency   | Picker                   | Yes      | Target currency (e.g. AUD)                                  |
+| Date          | Date picker              | Yes      | Defaults to today; future dates allowed                     |
+| Time          | Time picker (input mode) | Yes      | Defaults to current time; follows system 12h/24h format     |
+| Exchange rate | Calculated / editable    | Yes      | Auto-filled as `to_amount ÷ from_amount`; always visible |
+| Rate source   | Toggle                   | Yes      | "Custom (what I got)" or "Use Frankfurter rate"             |
+| Note          | Text                     | No       | e.g. "Superrich exchange booth"                             |
 
 #### Rate logic
 
@@ -764,143 +814,16 @@ The rate field is always shown and editable before saving. Switching rate source
 
 Saving a currency exchange atomically creates **two linked transaction records**:
 
-| Record | `transaction_type` | Effect |
-|---|---|---|
-| Exchange out | `currency_exchange_out` | Reduces `from_currency` running balance (e.g. THB −15,000) |
-| Exchange in (auto) | `currency_exchange_in` | Increases `to_currency` running balance (e.g. AUD +620); shown as income |
+| Record             | `transaction_type`      | Effect                                                                     |
+| ------------------ | ------------------------- | -------------------------------------------------------------------------- |
+| Exchange out       | `currency_exchange_out` | Reduces `from_currency` running balance (e.g. THB −15,000)              |
+| Exchange in (auto) | `currency_exchange_in`  | Increases `to_currency` running balance (e.g. AUD +620); shown as income |
 
 Both records share the same `exchange_event_id` UUID so they display together and delete together.
 
-#### Base currency income auto-log
-When `to_currency` = user's base currency (e.g. AUD):
-- A `currency_exchange_in` record is automatically created
-- It is **not** counted as an expense and does not affect budget calculations
-- It increases the base currency running balance
-- Displayed as: `↑ +A$620.00  |  Exchanged from THB  |  Rate: 0.0413`
+#### Import: exchange rate calculation
 
-#### Display in list
-Both sides appear as a **single visual unit** with a blue-teal left border and `↕` icon:
-```
-↕ Currency exchange                          19 Apr 2026
-  15,000 THB  →  A$620.00
-  Rate: 0.0413 (custom)  ·  Superrich exchange booth
-```
-
----
-
-### 11c. Running balance & Currency Wallets
-
-A `currency_balances` table tracks a per-currency running balance derived from all transactions. On mobile, this is computed from local Drift data. On the backend, it's maintained in PostgreSQL.
-
-| Event | THB effect | AUD effect |
-|---|---|---|
-| Currency income (20,000 THB) | +20,000 | — |
-| Expense (500 THB coffee) | −500 | −(AUD equiv.) |
-| Exchange out (15,000 THB → AUD) | −15,000 | — |
-| Exchange in (A$620) | — | +620 |
-
-The running balance is **informational only** — it never blocks actions.
-
-#### Home screen — balance chips
-Displayed as horizontally scrollable balance chips on the Home screen (e.g. `🇹🇭 THB 4,500 · 🇦🇺 AUD 1,240`) for any currency with a non-zero balance. Tapping any chip or the "See all" arrow navigates to the **Currency Wallets** screen.
-
-#### Currency Wallets screen (`/wallets`)
-
-A dedicated screen showing the user's complete currency portfolio:
-
-```
-┌─────────────────────────────────────┐
-│  💰 Total Portfolio Value           │
-│     A$2,131.25                      │
-│     (converted at today's rates)    │
-├─────────────────────────────────────┤
-│                                     │
-│  🇹🇭 THB                            │
-│  ┌─────────────────────────────┐   │
-│  │  4,500.00 THB  ≈ A$191.25  │   │
-│  │  ━━━━━━━━━▓▓░░░ sparkline  │   │
-│  │  In: +20,000  Spent: -500  │   │
-│  │  Exchanged: -15,000        │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  🇦🇺 AUD                            │
-│  ┌─────────────────────────────┐   │
-│  │  1,240.00 AUD              │   │
-│  │  ━━━━━━━━━━━━▓▓ sparkline  │   │
-│  │  In: +620  Spent: -380     │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  ▼ Empty currencies (5)            │
-└─────────────────────────────────────┘
-```
-
-Each currency card is tappable → navigates to **Currency Detail** (`/wallets/:currency`) showing the full transaction history for that currency.
-
-#### Negative balance warning
-If logging an expense in THB would cause the THB running balance to go negative:
-- Show inline warning on the expense entry sheet: `⚠ This will put your THB balance at −X,XXX THB`
-- User can still save — warning only, not a block
-- Useful when user spent THB before logging the ATM withdrawal
-
----
-
-### 11d. UI entry points
-
-The existing FAB (mobile) / "Add" button (web) opens a bottom sheet / modal with a **transaction type selector** at the top:
-
-```
-[ Expense ]  [ Income ]  [ Exchange ]
-```
-
-Switching type changes the form fields shown below. Single trigger, one sheet/modal, three modes.
-
-| Type | Trigger |
-|---|---|
-| Expense | Default; same as current behaviour |
-| Income | Tap "Income" tab in sheet |
-| Exchange | Tap "Exchange" tab in sheet |
-
----
-
-### 11e. Google Sheets — additional tabs
-
-Currency income and exchange events mirror to **dedicated tabs** (handled by NestJS backend), not the monthly expense tabs:
-
-| Tab name | Contents |
-|---|---|
-| `Currency Income` | All currency income records |
-| `Currency Exchanges` | All exchange events (one row per exchange pair) |
-
-**Currency Income columns:** Date, Currency, Amount, Source, Base currency equivalent (estimated), UUID
-
-**Currency Exchanges columns:** Date, From currency, From amount, To currency, To amount, Rate, Rate source, Note, UUID
-
----
-
-### 11f. Acceptance criteria
-
-- [ ] User can log a currency income event (e.g. 20,000 THB) via the Income tab in the add sheet
-- [ ] Currency income appears in the main list with green left border and `↓ Income` label
-- [ ] Currency income increases the THB running balance
-- [ ] User can log a currency exchange (THB → AUD) with a custom rate
-- [ ] User can log a currency exchange using the Frankfurter rate
-- [ ] Rate field is always visible and editable before saving
-- [ ] Switching between Custom and Frankfurter rate recalculates the rate or `to_amount` accordingly
-- [ ] Saving a THB → AUD exchange atomically creates both `currency_exchange_out` and `currency_exchange_in` records
-- [ ] Both sides of an exchange appear together as a single visual unit in the main list
-- [ ] Exchange in/out records are NOT counted as expenses and do NOT affect budget totals
-- [ ] Base currency running balance increases when base currency is the `to_currency` of an exchange
-- [ ] Running balance chips shown on Home screen for currencies with non-zero balance
-- [ ] Tapping a balance chip navigates to the Currency Wallets screen
-- [ ] Currency Wallets screen shows total portfolio value converted to base currency
-- [ ] Each currency card displays: balance, base currency equivalent, breakdown (income/spent/exchanged)
-- [ ] Tapping a currency card opens Currency Detail with full transaction history for that currency
-- [ ] Currencies with zero balance are collapsed in an "Empty" section at bottom
-- [ ] Currency Wallets screen is accessible from the bottom navigation bar (Wallets tab)
-- [ ] Logging a THB expense that would make THB balance negative shows a warning — save is still allowed
-- [ ] Currency income and exchange events mirrored to their own Google Sheets tabs (via NestJS backend)
-- [ ] Deleting an exchange event deletes both `out` and `in` records atomically
-- [ ] All transaction types sync correctly between mobile (Drift) and backend (Prisma)
+When importing exchange transactions from Excel, the `amount_base` for both the OUT and IN sides is now correctly computed by looking up the cached exchange rate (`originalCurrency → baseCurrency`) at the transaction date (falling back to most-recently-cached rate). Previously both sides were stored with a hardcoded 1.0 rate.
 
 ---
 
@@ -932,6 +855,10 @@ Currency income and exchange events mirror to **dedicated tabs** (handled by Nes
 - [ ] Dashboard totals, charts, and budget progress all respond to period changes
 - [ ] "Today" chip returns to the current period from any historical period
 - [ ] Period views work identically on mobile and web
+
+---
+
+
 
 ---
 
@@ -1056,44 +983,44 @@ When adding an expense in the **Transaction Bottom Sheet**:
 
 ---
 
+
+
+---
+
 ## 14. Visualisation dashboard
 
-### Charts
+### Home screen summary cards
 
-| Chart | Type | Description | Period-aware |
-|---|---|---|---|
-| Spend breakdown | Donut / pie | Spend by category; segments colour-matched to category colours | Yes |
-| Daily spend | Bar chart | One bar per day within the selected period | Yes |
-| Spend trend | Line chart | Rolling total over time | Yes |
-| Period comparison | Summary card | This period vs previous: total, delta (base currency + %) | Yes |
+The three coloured summary cards at the top of the Home screen display:
 
-### Chart libraries
+| Card          | Primary value                           | Secondary value                         |
+|---------------|-----------------------------------------|-----------------------------------------|
+| Total Spent   | `{baseCurrency} {amount}` (bold)        | `≈ {viewCurrency} {amount}` (small, hidden when base == view) |
+| Net Income    | `{baseCurrency} {amount}` (bold)        | `≈ {viewCurrency} {amount}` (small, hidden when base == view) |
+| Top Category  | Category name (bold)                    | `≈ {viewCurrency} {amount}` (small, hidden when base == view) |
 
-| Platform | Library |
-|---|---|
-| Mobile (Flutter) | `fl_chart` |
-| Web (Next.js) | `recharts` or `chart.js` |
+Summary totals are computed from `amountBase` across **all** transaction currencies (multi-currency support), not restricted to base-currency-only transactions.
 
-### Summary cards (Home screen)
+### Net Income calculation
 
-| Card | Content |
-|---|---|
-| Total spent | Amount in base currency and view currency for selected period (expenses only) |
-| Top category | Category with highest spend this period |
-| Budget remaining | Global budget: remaining in base currency (or "No budget set") |
-| Transactions | Count of expenses in selected period |
-| Currency balances | Horizontally scrollable balance chips per currency (e.g. `🇹🇭 THB 4,500 · 🇦🇺 AUD 1,240`) — tappable → opens Currency Wallets screen. Shown only when non-zero |
+Net Income = sum of `currency_income` transactions' `amountBase` − sum of `expense` transactions' `amountBase`.
 
-### Acceptance criteria
+**`currency_exchange_in` transactions are excluded from income totals** to avoid double-counting.
 
-- [ ] All charts update when period selector changes
-- [ ] Donut chart segments match category colours
-- [ ] Bar chart shows correct daily spend totals (expenses only) for the selected period
-- [ ] Period comparison shows correct absolute and percentage delta
-- [ ] Charts render correctly on mobile (single column) and web (responsive layout)
-- [ ] Empty state shown when no expenses exist for the selected period
-- [ ] Currency balance chips shown on Home screen for any currency with non-zero running balance
-- [ ] Charts have the same visual style on mobile and web
+### Donut chart (Home screen)
+
+- Center label: `Total\n{baseCurrency} {amount}` — **base currency only**, no view currency overlay
+- Category slices show percentage of total spend
+
+### Donut chart (Dashboard Detail / Reports)
+
+- Center label: `Total\n{baseCurrency} {amount}` — primary
+- When base ≠ view: `≈ {viewCurrency} {amount}` beneath (secondary, smaller font)
+- Category slices unchanged
+
+### Dashboard Detail summary cards
+
+The Dashboard Detail screen (accessed by tapping "Spend by Category →") includes the same base + view dual-display pattern as the home summary cards.
 
 ---
 
@@ -1223,6 +1150,10 @@ sync_queue
 
 ---
 
+
+
+---
+
 ## 16. Google Sheets integration
 
 ### Availability
@@ -1346,6 +1277,10 @@ src/sheets/
 
 ---
 
+
+
+---
+
 ## 17. Excel export
 
 ### Availability
@@ -1407,6 +1342,12 @@ The exported `.xlsx` file mirrors the same multi-sheet structure as Google Sheet
 
 All summary sheets use Excel formulas (`SUMIFS`, `COUNTIFS`) referencing `All Transactions`, so the exported file is a working spreadsheet — not just flat data.
 
+#### Export Format Behavior (Empty Dates & Periods)
+
+To ensure high data fidelity for analysis and re-importing:
+1. **Empty Date Rows (`no_transaction`)**: Gaps within the export date range (days with zero transactions) are populated on the `All Transactions` raw sheet as empty rows with Type = `no_transaction`, Date = missing date, Amount = 0, and other fields empty. This facilitates parsing and ensures the date range is continuous.
+2. **Zero-Transaction Periods**: All summary sheets (Daily, Weekly, Fortnightly, Monthly, Yearly) generate a row for *every* period in the date range, regardless of whether transactions occurred. Periods with no transactions show `0` for all sum amounts, `0` for counts, and `0` for category breakdowns.
+
 ### File naming
 
 | Format | Filename |
@@ -1440,6 +1381,10 @@ Query params: `?from=YYYY-MM-DD&to=YYYY-MM-DD`
 - [ ] Web: file is generated by NestJS and downloaded via browser
 - [ ] Apple Sign-In users see export as the primary data-sharing option (Google Sheets section shows upsell banner above export buttons)
 - [ ] Export works in local mode on mobile (no account required)
+
+---
+
+
 
 ---
 
@@ -1487,6 +1432,10 @@ Budget progress colours (both themes):
 - [ ] Income and exchange rows have correct accent border colours in both themes
 - [ ] WCAG AA contrast ratios met in both themes
 - [ ] Mobile and web use matching colour tokens for visual consistency
+
+---
+
+
 
 ---
 
@@ -1552,6 +1501,10 @@ Every async operation must have a defined error state. The AI agent must impleme
 
 ---
 
+
+
+---
+
 ## 20. Data models
 
 ### Shared logical model
@@ -1594,10 +1547,10 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `category_id` | UUID | Nullable; FK → categories (expenses only) |
 | `note` | TEXT | Nullable, max 200 chars |
 | `source_label` | TEXT | Nullable; for currency income (e.g. "ATM withdrawal") |
-
 | `transaction_date` | DATE | Date of the transaction |
 | `is_recurring` | BOOLEAN | Default false (expenses only) |
 | `recurrence_type` | VARCHAR(12) | weekly / fortnightly / monthly / null |
+| `is_aggregate` | BOOLEAN | Default false; when true, represents a period-level aggregate |
 | `sync_status` | VARCHAR(10) | pending / synced / conflict (mobile Drift only; not in Prisma) |
 | `deleted_at` | TIMESTAMP | Nullable; soft delete |
 | `created_at` | TIMESTAMP | |
@@ -1705,7 +1658,7 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 | `id` | UUID | PK |
 | `user_id` | UUID | FK → users |
 | `record_type` | VARCHAR(20) | transaction / budget / category |
-| `record_id` | UUID | The conflicting record UUID |
+| `record_id` | The conflicting record UUID |
 | `winning_version` | JSON | The version that was kept |
 | `losing_version` | JSON | The version that was discarded |
 | `resolved_at` | TIMESTAMP | |
@@ -1724,25 +1677,43 @@ Both Drift (mobile SQLite) and Prisma (backend PostgreSQL) implement the same lo
 
 ---
 
+
+
+---
+
 ## 21. Riverpod providers
 
-Define the following providers in the Flutter mobile app. All async providers use `AsyncNotifier` or `FutureProvider`.
+### New providers (v5.1.0)
 
-| Provider | Type | Responsibility |
-|---|---|---|
-| `transactionListProvider` | `AsyncNotifierProvider` | All transactions for selected period from Drift; watches `selectedPeriodProvider` |
-| `expenseListProvider` | `Provider` | Filters `transactionListProvider` to `transaction_type = expense` only |
-| `selectedPeriodProvider` | `StateProvider` | Current period type + date range |
-| `categoryListProvider` | `AsyncNotifierProvider` | All categories (including hidden) from Drift |
-| `activeCategoryListProvider` | `Provider` | Filters `categoryListProvider` to non-hidden |
-| `budgetListProvider` | `AsyncNotifierProvider` | All active budgets from Drift |
-| `budgetProgressProvider(budgetId)` | `FutureProvider.family` | % spent for a given budget in current cycle (expenses only) |
-| `exchangeRateProvider(currency, date)` | `FutureProvider.family` | Rate for currency pair on given date (Drift cache or Frankfurter API) |
-| `currencyBalancesProvider` | `AsyncNotifierProvider` | Running balances for all currencies from Drift |
-| `syncStatusProvider` | `StreamProvider` | Current sync state (idle / syncing / error) from SyncWorker |
-| `authStateProvider` | `StateNotifierProvider` | Auth state; exposes JWT, provider type (google/apple/none), user info |
-| `settingsProvider` | `NotifierProvider` | App settings from Drift (theme, view currency, etc.) |
-| `dashboardSummaryProvider` | `Provider` | Derives summary cards from `expenseListProvider` + `currencyBalancesProvider` |
+#### `txViewAmountProvider` (FutureProvider.family)
+
+```dart
+typedef _TxViewKey = ({
+  String fromCurrency,
+  String toCurrency,
+  String dateKey, // "yyyy-MM-dd"
+  double originalAmount,
+});
+
+final txViewAmountProvider =
+    FutureProvider.family<double?, _TxViewKey>((ref, args) async { ... });
+```
+
+**Purpose:** Computes the view currency equivalent of a single transaction's `originalAmount` using a **DB-only cached rate** for the transaction's date. Returns `null` when no rate is cached — callers must hide the display row when null.
+
+**Key behaviour:**
+- Looks up `fromCurrency → toCurrency` rate for `dateKey` in the local SQLite cache
+- Falls back to the most-recent cached rate for that pair (still DB-only, no network)
+- Returns `null` if no rate exists in the cache at all
+- Never makes a network request (safe to call on every list tile)
+
+#### `ExchangeRateDao.getForDateOrRecent` (new DAO method)
+
+```dart
+Future<double?> getForDateOrRecent(String baseCurrency, String quoteCurrency, DateTime date)
+```
+
+**Purpose:** DB-only rate lookup returning `null` (not a 1.0 fallback) when nothing is cached. Used exclusively by `txViewAmountProvider`.
 
 ---
 
@@ -1882,4 +1853,86 @@ Define the following providers in the Flutter mobile app. All async providers us
 
 ---
 
-*End of document — Project PET v3.0 (adapted for DailySpend monorepo)*
+## 25. Excel Import
+
+### Availability
+Available to **all users**. Users can upload or pick a spreadsheet file to import records directly into their transactions database:
+- **Mobile (Flutter)**: Local client-side parsing using `excel` package, validations, duplicate matching, and transaction inserts directly to the Drift SQLite DB. Records get `sync_status = pending` and sync asynchronously via the standard `sync_queue`. Works offline.
+- **Web (Next.js)**: Client-side parsing using SheetJS/`xlsx` package in browser, previewed in UI modal, and committed to database by submitting parsed JSON list to NestJS backend `POST /import/transactions` endpoint. Works online only.
+
+### Trigger
+Available in **Settings → Import from Excel**. Users pick a `.xlsx` file, triggering the parsing and validation preview flow.
+
+### Supported Sheets & Column Mapping
+Imports data from three raw sheets if found (sheets not present are skipped):
+1. **`All Transactions`**: Date, Type, Description, Category, Original Amount, Original Currency, Base Amount, Exchange Rate, Rate Source, UUID, Period (optional). Rows with Type = `no_transaction` are skipped. Category matches existing categories (case-insensitive, fuzzy fallback).
+   - *Duplicate Skip Logic*: To prevent double-importing of exchange and income events, if the specialized sheets `Currency Exchanges` or `Currency Income` are present in the Excel file, the importer will deliberately skip processing the corresponding `currency_exchange_out`, `currency_exchange_in`, and `currency_income` rows from the `All Transactions` sheet, delegating them entirely to the specialized sheets.
+2. **`Currency Income`**: Date, Currency, Amount, Source, Base Currency Equivalent, UUID.
+3. **`Currency Exchanges`**: Date, From Currency, From Amount, To Currency, To Amount, Rate, Rate Source, Note, UUID. Creates two linked exchange out/in records.
+
+### Aggregate / Missing-Date Support
+Supports importing period-level summary items (e.g. "this week my total food spend was 300 AUD") instead of single transactions:
+- **Trigger**: Detected if the sheet has a `Period` column (value = `week`, `fortnight`, `month`, `year`) or a prefix in the Description field (e.g. `[WEEK]`, `[MONTH]`).
+- **Behavior**: Sets `is_aggregate = true` on the database record, and adjusts the transaction date to the start of the period containing that date (Monday for a week, 1st for a month, Jan 1st for a year, fortnight index start for a fortnight). Aggregate records sum up in dashboard charts and budgets, but are excluded from transaction count metrics.
+
+### Duplicate Detection
+Ensures database integrity during import:
+- **UUID Match**: If row UUID matches an existing record in the database, it's flagged as an **Update (🔄)** and will overwrite the existing entry. Checked by default in preview.
+- **Probable Duplicate**: If row `Date + Amount + Category` (or Currency) matches an existing record, it's flagged as a **Probable Duplicate (⚠️)**. Unchecked by default.
+- **Error**: Any row failing basic validation (invalid type, invalid date, missing category for expense, negative amount) is flagged as an **Error (❌)**. All validation errors block the import until corrected.
+
+### Interactive Missing Category Mapping
+When the Excel import file contains categories not found in the user's database:
+- **Deferred Creation**: The system reads the missing categories into memory during the preview stage without committing them to the database, ensuring database cleanliness if the preview is closed.
+- **Mapping UI**: The preview screen displays a "Map New Categories" section listing all newly discovered categories.
+- **Hierarchical Overrides**: For each pending category, the user can use a dropdown to select either:
+  - Setting it as a new **Top-Level Category** (no parent).
+  - Mapping it as a subcategory of any **Existing Category** in the database.
+  - Nesting it under another **Newly Pending Category** from the file.
+- **Committing**: Upon user confirmation ("Import"), parent/child relations are resolved and the categories are inserted into the database right before transactions are processed.
+
+---
+
+## 26. View Currency Display Improvements (v5.1.0)
+
+This section documents the view currency UI changes introduced in v5.1.0.
+
+### Problem statement
+
+Prior to v5.1.0:
+
+1. **Incorrect view estimate on transaction tiles**: When base == view (e.g. both AUD), a foreign-currency transaction (e.g. 500 THB) would show `≈ AUD 500.00` because the code used `amountBase * viewRate` where `amountBase` was stored with a 1:1 fallback rate and `viewRate = 1.0`. This was misleading.
+2. **Missing `≈` prefix**: Some secondary currency rows used `=` instead of the approximation symbol `≈`.
+3. **Dashboard totals inconsistency**: Summary card totals showed the view currency as the primary value; base currency was not always clearly differentiated.
+4. **Donut chart center**: The home screen donut chart showed view currency below the base currency, crowding the center hole.
+5. **Income calculation**: `currency_exchange_in` was incorrectly included in Net Income totals, inflating them.
+
+### Solution
+
+| Component | Change |
+|-----------|--------|
+| `ExchangeRateDao` | Added `getForDateOrRecent()` — DB-only lookup, returns `null` if uncached |
+| `shared_providers.dart` | Added `txViewAmountProvider` (FutureProvider.family) for per-transaction historical-rate conversion |
+| `transaction_list_tile.dart` | Uses `txViewAmountProvider`; hides `≈` row when `viewAmount == null`; replaced `=` with `≈` |
+| `dashboard_summary_cards.dart` | Base currency shown as primary value (bold, large); view currency as secondary (`≈`, smaller) |
+| `wallets_screen.dart` | Total Net Worth card shows base currency primary, view currency secondary |
+| `category_donut_chart.dart` | Added `showViewCurrency` flag; home screen sets it to `false` |
+| `home_screen.dart` | `CategoryDonutChart(showViewCurrency: false)` — donut center shows base currency only |
+| `dashboard_detail_screen.dart` | Summary cards show base primary + view secondary; donut shows all currencies (no currency filter) |
+| `shared_providers.dart` | `currency_exchange_in` removed from income totals to prevent double-counting |
+| `import_provider.dart` | Exchange transaction import now correctly computes `amountBase` using cached rates for both OUT and IN sides |
+| `transaction_detail_sheet.dart` | View currency estimate row added with rate label (e.g. `≈ + THB 1,234.56 (1 AUD = 24.50 THB)`) |
+| `period_comparison_card.dart` | View currency shown as secondary below base currency totals |
+
+### Behaviour rules
+
+1. **`≈` symbol** is used universally for all view/estimated currency conversions
+2. **View currency secondary row** is hidden whenever `fromCurrency == viewCurrency`
+3. **Transaction tile view estimate** uses historical cached rate (at transaction date, DB-only); hidden when no rate is cached
+4. **Summary totals** use `amountBase` for multi-currency accuracy (base currency equivalent stored at save time)
+5. **Donut chart at Home** — base currency only, no view overlay
+6. **Donut chart at Reports/Dashboard Detail** — base primary, view secondary when base ≠ view
+
+---
+
+*End of document — Project PET v5.1.0 (adapted for DailySpend monorepo)*
