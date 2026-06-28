@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/providers/database_providers.dart';
 import '../providers/budget_providers.dart';
 import '../widgets/budget_card.dart';
 
@@ -61,9 +60,6 @@ class BudgetsScreen extends ConsumerWidget {
                           progress: prog,
                           categoryName: catName,
                           onTap: () => context.go('/budgets/${prog.budget.id}'),
-                          onDelete: () => ref
-                              .read(budgetDaoProvider)
-                              .deleteBudget(prog.budget.id),
                         ),
                       );
                     },

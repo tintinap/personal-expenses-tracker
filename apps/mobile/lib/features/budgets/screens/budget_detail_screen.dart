@@ -198,31 +198,124 @@ class BudgetDetailScreen extends ConsumerWidget {
 
   Widget _buildHistorySection(WidgetRef ref, String budgetId) {
     final historyAsync = ref.watch(budgetHistoryProvider(budgetId));
-    
+
     return historyAsync.when(
-      loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
-      error: (err, stack) => SliverToBoxAdapter(child: Center(child: Text('Error: $err'))),
+      loading: () => const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(child: CircularProgressIndicator()),
+          )),
+      error: (err, stack) =>
+          SliverToBoxAdapter(child: Center(child: Text('Error: $err'))),
       data: (history) {
         if (history.isEmpty) {
           return const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.all(16.0),
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Text('No past periods yet.'),
             ),
           );
         }
-        
-        return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final h = history[index];
-              return ListTile(
-                title: Text('${DateFormat.yMMMd().format(h.period.from)} - ${DateFormat.yMMMd().format(h.period.to)}'),
-                subtitle: Text('Spent: ${h.spentAmount.toStringAsFixed(2)} / Limit: ${h.limitAmount.toStringAsFixed(2)}'),
-                trailing: Text('${(h.percentageUsed * 100).toStringAsFixed(1)}%'),
-              );
-            },
-            childCount: history.length,
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final h = history[index];
+                final theme = Theme.of(context);
+                final pct = h.percentageUsed;
+                final isOver = pct >= 1.0;
+
+                Color barColor = Colors.green;
+                if (pct >= 1.0) {
+                  barColor = Colors.red;
+                } else if (pct >= 0.90) {
+                  barColor = Colors.orange;
+                } else if (pct >= 0.75) {
+                  barColor = Colors.amber;
+                }
+
+                final remaining = (h.limitAmount - h.spentAmount)
+                    .clamp(0, double.infinity);
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Date range
+                          Text(
+                            '${DateFormat.yMMMd().format(h.period.from)}  –  ${DateFormat.yMMMd().format(h.period.to)}',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Spent / limit row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Spent  ${h.spentAmount.toStringAsFixed(2)}',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                              Text(
+                                'Limit  ${h.limitAmount.toStringAsFixed(2)}',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          // Progress bar
+                          LinearProgressIndicator(
+                            value: pct.clamp(0.0, 1.0),
+                            backgroundColor:
+                                theme.colorScheme.surfaceContainerHighest,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(barColor),
+                            minHeight: 8,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          const SizedBox(height: 6),
+                          // Remaining / percentage
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                isOver
+                                    ? 'Over by ${(h.spentAmount - h.limitAmount).toStringAsFixed(2)}'
+                                    : '${remaining.toStringAsFixed(2)} remaining',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: isOver
+                                      ? theme.colorScheme.error
+                                      : Colors.green,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '${(pct * 100).toStringAsFixed(1)}%',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: barColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+              childCount: history.length,
+            ),
           ),
         );
       },

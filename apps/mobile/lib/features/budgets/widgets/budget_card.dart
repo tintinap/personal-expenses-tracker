@@ -6,14 +6,12 @@ class BudgetCard extends StatelessWidget {
   final BudgetProgress progress;
   final String? categoryName;
   final VoidCallback onTap;
-  final VoidCallback? onDelete;
 
   const BudgetCard({
     super.key,
     required this.progress,
     this.categoryName,
     required this.onTap,
-    this.onDelete,
   });
 
   @override
@@ -38,10 +36,11 @@ class BudgetCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // ── Header ──────────────────────────────────────────────
               Row(
                 children: [
                   Expanded(
@@ -66,19 +65,12 @@ class BudgetCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (onDelete != null) ...[
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: Icon(Icons.delete_outline,
-                          color: theme.colorScheme.error, size: 20),
-                      tooltip: 'Delete budget',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => _confirmDelete(context),
-                    ),
-                  ],
                 ],
               ),
+
               const SizedBox(height: 12),
+
+              // ── Spent / Limit ────────────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -94,7 +86,10 @@ class BudgetCard extends StatelessWidget {
                   ),
                 ],
               ),
+
               const SizedBox(height: 8),
+
+              // ── Progress bar ─────────────────────────────────────────
               LinearProgressIndicator(
                 value: progress.percentageUsed.clamp(0.0, 1.0),
                 backgroundColor: theme.colorScheme.surfaceContainerHighest,
@@ -102,38 +97,36 @@ class BudgetCard extends StatelessWidget {
                 minHeight: 8,
                 borderRadius: BorderRadius.circular(4),
               ),
+
+              const SizedBox(height: 8),
+
+              // ── Remaining / % ────────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    progress.isOverBudget
+                        ? 'Over by ${progress.budget.currency} ${(progress.spentAmount - progress.limitAmount).toStringAsFixed(2)}'
+                        : '${progress.budget.currency} ${progress.remainingAmount.toStringAsFixed(2)} remaining',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: progress.isOverBudget
+                          ? theme.colorScheme.error
+                          : Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '${(progress.percentageUsed * 100).toStringAsFixed(0)}%',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: progressColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context) {
-    final title = progress.budget.name?.isNotEmpty == true
-        ? progress.budget.name!
-        : 'this budget';
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Budget'),
-        content: Text('Delete "$title"? This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              onDelete?.call();
-            },
-            child: const Text('Delete'),
-          ),
-        ],
       ),
     );
   }
