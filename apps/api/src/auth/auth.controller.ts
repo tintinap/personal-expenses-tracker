@@ -6,6 +6,8 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
+  Delete,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -15,11 +17,6 @@ import { RefreshTokenDto } from './dto/auth-response.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * POST /auth/google
-   * Receives Google OAuth token from client, validates, creates/finds user, returns JWT pair.
-   * In production, this would validate the Google ID token server-side.
-   */
   @Post('google')
   @HttpCode(HttpStatus.OK)
   async googleAuth(
@@ -60,10 +57,6 @@ export class AuthController {
     };
   }
 
-  /**
-   * POST /auth/apple
-   * Receives Apple Sign-In token from client, validates, creates/finds user, returns JWT pair.
-   */
   @Post('apple')
   @HttpCode(HttpStatus.OK)
   async appleAuth(
@@ -100,10 +93,6 @@ export class AuthController {
     };
   }
 
-  /**
-   * POST /auth/refresh
-   * Exchange a valid refresh token for new access + refresh token pair.
-   */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Body('refreshToken') refreshToken: string) {
@@ -111,30 +100,20 @@ export class AuthController {
       throw new UnauthorizedException('Refresh token is required');
     }
 
-    return this.authService.refreshTokens(refreshToken);
+    return this.authService.refreshAccessToken(refreshToken);
   }
 
-  /**
-   * DELETE /auth/account
-   * Deletes the user account and all associated data.
-   */
   @UseGuards(JwtAuthGuard)
   @Delete('account')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteAccount(@Request() req: any) {
-    await this.authService.deleteAccount(req.user.id);
+  async deleteAccount(@Req() req: any) {
+    await this.authService.deleteAccount(req.user.userId);
   }
 
-  /**
-   * POST /auth/logout
-   * Invalidate the current session (client-side token discard).
-   */
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout() {
-    // JWT is stateless — client discards tokens.
-    // Future: add token blocklist for immediate revocation.
     return;
   }
 }
