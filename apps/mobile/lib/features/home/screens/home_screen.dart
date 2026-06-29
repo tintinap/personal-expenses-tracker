@@ -140,7 +140,7 @@ class HomeScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.receipt_long, size: 64, color: theme.colorScheme.surfaceVariant),
+                          Icon(Icons.receipt_long, size: 64, color: theme.colorScheme.surfaceContainerHighest),
                           const SizedBox(height: 16),
                           Text('No transactions yet', style: theme.textTheme.bodyLarge),
                           const SizedBox(height: 8),

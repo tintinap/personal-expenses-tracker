@@ -7,6 +7,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/widgets/sign_in_banner.dart';
 import '../../export/providers/export_provider.dart';
 import '../../shared/providers/shared_providers.dart';
+import '../providers/sheets_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../import/screens/import_preview_screen.dart';
 import '../../sync/providers/sync_provider.dart';
@@ -24,6 +25,7 @@ class SettingsScreen extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
     final isLoggedIn = authState.isAuthenticated;
     final syncState = ref.watch(syncProvider);
+    final sheetsState = ref.watch(sheetsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -127,9 +129,22 @@ class SettingsScreen extends ConsumerWidget {
                   ? null
                   : TextStyle(color: Theme.of(context).disabledColor),
             ),
-            subtitle: Text(isLoggedIn ? 'Not connected' : 'Sign in required'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
+            subtitle: Text(
+              !isLoggedIn
+                  ? 'Sign in required'
+                  : sheetsState.isConnected
+                      ? 'Connected'
+                      : 'Requires Google Account',
+            ),
+            trailing: sheetsState.isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : sheetsState.isConnected
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : const Icon(Icons.chevron_right),
+            onTap: () async {
               if (!isLoggedIn) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -138,7 +153,45 @@ class SettingsScreen extends ConsumerWidget {
                 );
                 return;
               }
-              // TODO: Google Sheets connect flow (requires auth)
+              
+              if (sheetsState.isConnected) {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Disconnect Sheets?'),
+                    content: const Text('Your spreadsheet will remain in Google Drive, but new transactions will no longer be synced.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Disconnect', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                
+                if (confirm == true) {
+                  await ref.read(sheetsProvider.notifier).disconnect();
+                }
+              } else {
+                // Connect flow
+                final success = await ref.read(sheetsProvider.notifier).connect();
+                if (success && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Google Sheets connected!')),
+                  );
+                } else if (context.mounted && sheetsState.error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(sheetsState.error!),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
           ),
           ListTile(

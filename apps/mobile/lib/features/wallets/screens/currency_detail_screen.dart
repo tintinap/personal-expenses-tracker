@@ -41,7 +41,7 @@ class CurrencyDetailScreen extends ConsumerWidget {
                 return Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Card(
-                    color: theme.colorScheme.surfaceVariant,
+                    color: theme.colorScheme.surfaceContainerHighest,
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: Column(

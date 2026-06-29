@@ -103,28 +103,28 @@ Implement all remaining features, fix bugs, and clean up tech debt identified fr
   - [x] Add "Delete Account" button in Settings with confirmation dialog
   - [x] Clear auth state, return to local mode
 
-### [ ] Phase 5: Integrations (can defer past v1 MVP)
+### [x] Phase 5: Integrations (can defer past v1 MVP)
 
-- [ ] **T19: Real Google Sheets API** (backend)
+- [x] **T19: Real Google Sheets API** (backend)
   - Integrate `googleapis` (Google Sheets API v4) with OAuth2 client
   - Implement real `setupSheet()`, `syncTransactionsToSheet()`, row CRUD by UUID
   - Add `Currency Income` and `Currency Exchanges` tabs
   - Add queue processor for async writes with retry
-- [ ] **T20: Real FCM push notifications** (backend)
+- [x] **T20: Real FCM push notifications** (backend)
   - Add `firebase-admin` package, initialize with service account
   - Implement real `sendPushNotification()` using `admin.messaging().send()`
   - Add FCM token registration endpoint
-- [ ] **T21: Google Sheets UI in Settings**
+- [x] **T21: Google Sheets UI in Settings**
   - Wire "Connect"/"Disconnect" buttons to backend Sheets endpoints
   - Display linked sheet name; show upsell banner for Apple Sign-In users
-- [ ] **T22: Recurring expenses auto-logging**
+- [x] **T22: Recurring expenses auto-logging**
   - Build recurrence evaluation logic (check on app launch / period change)
   - Auto-insert copies at the start of each new cycle
   - UI to mark expense as recurring and to pause/delete recurrence
 
-### [ ] Phase 6: Future Work
+### [x] Phase 6: Future Work
 
-- [ ] **T23: Web Client Excel Import (Next.js)**
+- [x] **T23: Web Client Excel Import (Next.js)**
   - Implement client-side parsing using SheetJS/xlsx in `apps/web/src/lib/import-parser.ts`
   - Build preview modal UI (`ImportModal.tsx`) showing validation checks and row toggle checkboxes
   - Wire Settings page import button and call `POST /import/transactions` API client

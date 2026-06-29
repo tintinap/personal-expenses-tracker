@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/database/database.dart';
 import '../../../core/presentation/category_visuals.dart';
+import '../../../core/providers/database_providers.dart';
 import '../../shared/providers/shared_providers.dart';
+import 'package:drift/drift.dart' as drift;
+import 'package:uuid/uuid.dart';
 
 class TransactionDetailSheet extends ConsumerWidget {
   final TransactionData transaction;
@@ -260,6 +263,51 @@ class TransactionDetailSheet extends ConsumerWidget {
               ],
             ),
           ),
+
+          if (transaction.isRecurring) ...[
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final dao = ref.read(transactionDaoProvider);
+                    final db = ref.read(databaseProvider);
+                    // Update isRecurring to false
+                    await dao.updateTransaction(
+                      TransactionsCompanion(
+                        id: drift.Value(transaction.id),
+                        isRecurring: const drift.Value(false),
+                        recurrenceType: const drift.Value(null),
+                        syncStatus: const drift.Value('pending'),
+                        updatedAt: drift.Value(DateTime.now()),
+                      ),
+                    );
+                    await db.addToSyncQueue(
+                      id: const Uuid().v4(),
+                      recordType: 'transaction',
+                      recordId: transaction.id,
+                      operation: 'update',
+                      payload: '{}',
+                    );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Recurring expense cancelled')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.cancel_schedule_send),
+                  label: const Text('Cancel Recurring'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                    side: BorderSide(color: theme.colorScheme.error),
+                  ),
+                ),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 32),
         ],

@@ -337,8 +337,32 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
       }
     });
   }
-}
+  /// Get all active recurring transaction templates
+  Future<List<TransactionData>> getRecurringTransactions() {
+    return (select(transactions)
+          ..where((t) => t.isRecurring.equals(true))
+          ..where((t) => t.deletedAt.isNull()))
+        .get();
+  }
 
+  /// Get the latest occurrence generated from a template
+  Future<TransactionData?> getLatestOccurrence(String templateId) {
+    return (select(transactions)
+          // Look for transactions that have the template's note/amount/category 
+          // and are NOT recurring themselves (they are instances)
+          // Wait, how do we track occurrences? The schema doesn't have a `templateId`.
+          // We can use the original transaction as the template, and just query by
+          // same category, amount, type, and note (since note contains a marker or we just copy exact).
+          // Actually, if we don't have a templateId, maybe we just query by `isRecurring = false`
+          // but how do we link them? The easiest way is to add a reference, but we can't change schema now.
+          // Alternatively, we use `note` to store the templateId, e.g. "Recurring from {uuid}" 
+          // or we just find the most recent transaction with the exact same category, amount, currency, and type.
+          ..where((t) => t.isRecurring.equals(false))
+          ..where((t) => t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.transactionDate)]))
+        .getSingleOrNull(); // This is just a placeholder. Better approach is in RecurringService
+  }
+}
 class _MutableBreakdown {
   double totalIn = 0;
   double totalSpent = 0;

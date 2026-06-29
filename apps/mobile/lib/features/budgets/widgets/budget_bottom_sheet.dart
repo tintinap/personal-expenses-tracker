@@ -26,7 +26,7 @@ class _BudgetBottomSheetState extends ConsumerState<BudgetBottomSheet> {
   
   String _scopeType = 'all';
   Set<String> _selectedCategoryIds = {};
-  Set<String> _expandedParentIds = {};
+  final Set<String> _expandedParentIds = {};
   
   String _currency = 'AUD';
   String _periodType = 'monthly';

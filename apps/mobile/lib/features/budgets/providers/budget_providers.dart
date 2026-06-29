@@ -99,7 +99,7 @@ final budgetProgressListProvider = FutureProvider<List<BudgetProgress>>((ref) as
       } catch (_) {}
     }
     
-    final percentage = budget.amountBase > 0 ? spent / budget.amountBase : 0.0;
+    final percentage = budget.amountBase > 0 ? spent / budget.amountBase : (spent > 0 ? 1.0 : 0.0);
     
     List<String> categoryNames = [];
     if (budget.scopeType != 'all' && budget.categoryIds != null) {
@@ -171,7 +171,7 @@ final budgetHistoryProvider = FutureProvider.family<List<BudgetPeriodHistory>, S
       } catch (_) {}
     }
     
-    final percentage = budget.amountBase > 0 ? spent / budget.amountBase : 0.0;
+    final percentage = budget.amountBase > 0 ? spent / budget.amountBase : (spent > 0 ? 1.0 : 0.0);
     
     history.add(BudgetPeriodHistory(
       period: period,

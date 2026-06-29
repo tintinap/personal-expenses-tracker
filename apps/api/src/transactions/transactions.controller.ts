@@ -58,6 +58,13 @@ export class TransactionsController {
     return result;
   }
 
+  @Post('bulk')
+  async createBulk(@Req() req: any, @Body() body: { transactions: CreateTransactionDto[] }) {
+    const result = await this.transactionsService.bulkInsert(req.user.userId, body);
+    await this.budgetAlertsService.evaluateUserBudgets(req.user.userId).catch(() => {});
+    return result;
+  }
+
   @Patch(':id')
   async update(
     @Req() req: any,
