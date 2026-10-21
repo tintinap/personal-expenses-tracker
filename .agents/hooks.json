@@ -1,0 +1,68 @@
+{
+  "oma-keyword-detector": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "bun \"/Users/tinnapatplangsri/.gemini/antigravity-cli/hooks/keyword-detector.ts\"",
+        "timeout": 5
+      }
+    ]
+  },
+  "oma-state-boundary": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "bun \"/Users/tinnapatplangsri/.gemini/antigravity-cli/hooks/state-boundary.ts\"",
+        "timeout": 5
+      }
+    ]
+  },
+  "oma-skill-injector": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "bun \"/Users/tinnapatplangsri/.gemini/antigravity-cli/hooks/skill-injector.ts\"",
+        "timeout": 3
+      }
+    ]
+  },
+  "oma-code-intelligence-primer": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "bun \"/Users/tinnapatplangsri/.gemini/antigravity-cli/hooks/code-intelligence-primer.ts\"",
+        "timeout": 3
+      }
+    ]
+  },
+  "oma-refactor-guard": {
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|notebook_edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"/Users/tinnapatplangsri/.gemini/antigravity-cli/hooks/refactor-guard.ts\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bun \"/Users/tinnapatplangsri/.gemini/antigravity-cli/hooks/refactor-guard.ts\"",
+        "timeout": 5
+      }
+    ]
+  },
+  "oma-persistent-mode": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bun \"/Users/tinnapatplangsri/.gemini/antigravity-cli/hooks/persistent-mode.ts\"",
+        "timeout": 30
+      }
+    ]
+  }
+}

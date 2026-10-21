@@ -1,5 +1,5 @@
 ---
-description: Database standards with Prisma ORM and PostgreSQL
+description: Database schema design, normalization, indexing, and integrity standards for SQL, NoSQL, and vector databases
 globs: "**/*.{sql,prisma}"
 alwaysApply: false
 ---
@@ -8,29 +8,20 @@ alwaysApply: false
 
 ## Core Rules
 
-1. **Prisma as single source of truth**: All schema changes go through `prisma/schema.prisma`
-2. **Migrations via Prisma Migrate**: `npx prisma migrate dev` for development, `npx prisma migrate deploy` for production
-3. **Never modify migration files after they've been applied**
-4. **Use `@@map()` and `@map()`** to keep PostgreSQL column names snake_case while using camelCase in TypeScript
-5. **Always add indexes** for frequently queried columns
-6. **Use explicit types** via `@db.VarChar()`, `@db.Text`, etc.
-
-## Workflow
-
-```
-Edit schema.prisma → prisma migrate dev → prisma generate → commit migration files
-```
-
-## Naming Conventions
-
-- Models: `PascalCase` (e.g., `Expense`)
-- Table names: `snake_case` via `@@map("expenses")`
-- Column names: `snake_case` via `@map("column_name")`
-- Migration names: descriptive (e.g., `add_user_auth_fields`)
-
-## Anti-Patterns
-
-- ❌ Never use `db push` in production
-- ❌ Never delete migration files from `prisma/migrations/`
-- ❌ Never inline raw SQL unless Prisma cannot express the query
-- ❌ Never store monetary amounts as `Float` in production (use `Decimal` — current schema uses `Float` for simplicity)
+1. Choose model first, engine second: workload, access pattern, consistency, and scale drive DB selection.
+2. For relational workloads, enforce at least **3NF** by default. Break 3NF only with explicit performance justification.
+3. For distributed/non-relational workloads, model around aggregates and access paths; document **BASE** and consistency tradeoffs.
+4. Document **ACID** expectations for relational transactions. For distributed tradeoffs, document consistency compromises explicitly.
+5. For schema architecture work, document the relevant schema layers: **external schema**, **conceptual schema**, **internal schema**.
+6. Treat integrity as first-class: entity, domain, referential, and business-rule integrity must be explicit.
+7. Concurrency is never implicit: define transaction boundaries, locking strategy, and isolation level per critical flow.
+8. For new or changed data models, specify: naming, definition, format, allowed values, and validation rules.
+9. Update the affected schema decisions and data definitions; add capacity estimates when the task changes capacity requirements.
+10. Proactively flag anti-patterns and insecure shortcuts instead of silently implementing them.
+11. Vector DBs are retrieval infrastructure, not source-of-truth databases. Store embeddings and metadata there; keep canonical documents elsewhere.
+12. Never treat vector search as a drop-in for lexical search. Default to hybrid retrieval when exact match or explainability matters.
+13. Embeddings are schema-like assets: version model, dimension, chunking, and preprocessing. Plan re-embedding migrations explicitly.
+14. Schema or data changes on live tables follow expand-contract: additive expand, dual-write + batched backfill, verified read switch, delayed contract. Use lock-aware DDL with timeouts; ship destructive steps in a separate deploy after a soak window.
+15. Tune queries from measurement and execution plans, never guesswork: measure, explain, nominate the dominant cost node, optimize, re-measure p95.
+16. Strongly recommend explicit application ownership of business policies, workflows, and external side effects in both new and existing triggers, stored procedures/functions, views, DB jobs, and ORM hooks. For affected existing logic, give a concrete alternative and transition priority; existing convention alone does not justify retention. Use `.agents/skills/oma-db/resources/anti-patterns.md` §5 for review and technical retention criteria. This is a strong recommendation, not a blanket feature ban or authorization for an unrelated rewrite.
+17. Preserve DB integrity constraints, atomic updates, transactions/isolation/locking, RLS and privileges, DB audit, justified dependent cascades, and efficient set-based operations. For an accepted transition, follow `.agents/skills/oma-db/resources/migration-playbook.md` to cover every writer, prevent duplicate side effects, and define rollback.

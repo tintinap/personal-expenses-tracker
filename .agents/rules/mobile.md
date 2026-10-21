@@ -1,44 +1,23 @@
 ---
-description: Flutter/Dart cross-platform mobile development standards with Provider state management
+description: Flutter/Dart and cross-platform mobile development standards
 globs: "**/*.{dart,swift,kt}"
 alwaysApply: false
 ---
 
-# Mobile Development Standards (Flutter)
+# Mobile Development Standards
+
+Variant-specific stacks live in `.agents/skills/oma-mobile/variants/{flutter,react-native,swift-ios}/`.
+React Native sources (`.ts`/`.tsx`) are not matched by this rule's glob — for RN work, read the
+`react-native` variant directly. Kotlin-native (Compose) is not a supported variant; `.kt` files
+here are Flutter/RN Android host code only.
 
 ## Core Rules
 
-1. **Clean Architecture**: `core` → `data` → `providers` → `screens` → `widgets`
-2. **State Management**: Provider with ChangeNotifier. No raw `setState` for complex logic.
-3. **Design Guidelines**: Material Design 3 with custom theme (`core/theme/`)
-4. **Resource Cleanup**: All controllers disposed in `dispose()` method
-5. **Networking**: `http` package for API calls. Handle offline gracefully.
-6. **Performance**: 60fps target, test on both platforms. Use `const` constructors.
-7. **No Business Logic in Widgets**: Date math, currency conversion, filtering → Provider or service.
-
-## Architecture
-
-```
-apps/mobile/lib/
-├── core/              # Theme, constants, helpers
-├── data/              # Models + API client (HTTP → NestJS)
-│   ├── models/        # Data classes (Expense, Category)
-│   └── database/      # DatabaseService (REST client)
-├── providers/         # State management (ChangeNotifier)
-├── screens/           # Full-page widgets
-├── services/          # Export, import, exchange rate
-└── widgets/           # Reusable UI components
-```
-
-## Naming Conventions
-
-- Files: `snake_case.dart`
-- Classes/Enums: `PascalCase`
-- Functions/Variables: `camelCase`
-- Constants: `camelCase` or `SCREAMING_SNAKE_CASE`
-- Private members: prefix with `_`
-
-## i18n
-
-- Use ARB-based localization if `packages/i18n/` exists
-- Never hardcode user-facing strings — use localization keys
+1. **Clean Architecture**: domain -> data -> presentation (Swift native: App/Core/Features/Shared)
+2. **State Management**: the variant's solution — Flutter: Riverpod/Bloc; React Native: Zustand + TanStack Query; Swift: `@MainActor @Observable`. No raw setState/ad-hoc state for complex logic
+3. **Design Guidelines**: Material Design 3 (Android) + iOS HIG (iOS)
+4. **Resource Cleanup**: dispose controllers / cancel structured tasks; Swift: `.task {}` auto-cancel, never `deinit`
+5. **Networking**: transport client with interceptors (Flutter: Dio; RN: axios behind TanStack Query hooks; Swift: swift-openapi-generator Client) + repository-layer response cache when required; handle offline gracefully
+6. **Secrets**: secure storage only (flutter_secure_storage / Keychain / react-native-keychain) — never plain prefs or MMKV
+7. **Performance**: 60fps target; test on both platforms
+8. **E2E Testing**: Maestro (Flutter/RN) or XCUITest (Swift native) for critical user flows
