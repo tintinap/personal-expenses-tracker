@@ -1,22 +1,24 @@
 ---
-description: Software architecture workflow — diagnose architecture problems, select the right analysis method, compare options, synthesize stakeholder input, and produce a recommendation, review, or ADR
+name: architecture
+description: Software architecture workflow that diagnoses architecture problems, selects the right analysis method, compares options, synthesizes stakeholder input, and produces a recommendation, review, or ADR
+disable-model-invocation: true
 ---
 
-# MANDATORY RULES — VIOLATION IS FORBIDDEN
-
 - **Response language follows `language` setting in `.agents/oma-config.yaml` if configured.**
-- **NEVER skip steps.** Execute from Step 1 in order.
+- Follow `.agents/skills/_shared/core/execution-policy.md` for authorization, clarification, verification, and completion. Execute required steps on the selected path in dependency order; apply documented branch and skip conditions.
 - **Do NOT write implementation code or task plans in this workflow.** Hand off to `/plan` after the architecture decision is made.
-- **You MUST use MCP tools throughout the workflow.**
-  - Use code analysis tools (`get_symbols_overview`, `find_symbol`, `find_referencing_symbols`, `search_for_pattern`) to inspect the current architecture.
-  - Use memory tools (write/edit) to record architecture outputs.
-  - Memory path: configurable via `memoryConfig.basePath` (default: `.serena/memories`)
-  - Tool names: configurable via `memoryConfig.tools` in `mcp.json`
-  - Do NOT use raw file reads or grep as substitutes when MCP tools are available.
+- Follow `.agents/skills/_shared/core/code-intelligence.md`: discover the configured provider’s tools; use native search only for paths outside this project or ignored paths when unavailable or timed out. Do not install a provider or track a repository automatically.
+- Use native file tools and `.agents/skills/_shared/runtime/memory-protocol.md` for durable coordination state; code-intelligence memory tools are not required.
 
 ---
 
 > **Vendor note:** This workflow executes inline. Use `.agents/skills/oma-architecture/SKILL.md` and its resources as the primary reference for method selection, stakeholder synthesis, and output format.
+
+---
+
+## L1 Decision Events
+
+Emit required L1 decisions by calling `oma state emit` directly, as documented in `.agents/skills/_shared/runtime/event-spec.md`.
 
 ---
 
@@ -41,11 +43,12 @@ If the problem is vague, start in Diagnostic Mode.
 
 ## Step 2: Analyze the Existing System
 
-// turbo
+Read prior decisions in `docs/decisions/` first. Read `.agents/results/architecture/`, `docs/design-docs/`, and `docs/plans/designs/` as legacy context until migration. New decisions supersede old ones explicitly (update the old ADR's `Status`), never contradict them silently.
+
 Use MCP code analysis tools to understand the current architecture:
-- `get_symbols_overview` for project structure and boundaries
-- `find_symbol` and `find_referencing_symbols` for ownership and coupling
-- `search_for_pattern` for integration points, layering, and recurring pain points
+- Configured structure tools or scoped directory/file inspection for project structure and boundaries
+- Configured symbol/reference search or native impact inspection for ownership and coupling
+- Configured pattern search or native search for integration points, layering, and recurring pain points
 
 Summarize:
 - key modules/services
@@ -90,13 +93,13 @@ Requirements:
 For cross-cutting decisions, read:
 - `.agents/skills/oma-architecture/resources/stakeholder-synthesis.md`
 
-Consult only the agents that matter to the decision:
-- `oma-pm` for business scope and priorities
-- `oma-backend` for service/API/domain tradeoffs
-- `oma-db` for data ownership and consistency
-- `oma-tf-infra` for deployment and operational architecture
-- `oma-qa` for security, performance, and testability risks
-- `oma-frontend` / `oma-mobile` for client complexity and integration impact
+Consult only the agents that matter to the decision (agent ids per the mapping table in `.agents/workflows/orchestrate.md`):
+- `pm` for business scope and priorities
+- `backend` for service/API/domain tradeoffs
+- `db` for data ownership and consistency
+- `tf-infra` for deployment and operational architecture
+- `qa` for security, performance, and testability risks
+- `frontend` / `mobile` for client complexity and integration impact
 
 Do not turn consultation into consensus theater. Synthesize and recommend explicitly.
 
@@ -120,14 +123,34 @@ If the decision remains user-owned, present the options with clear tradeoffs rat
 
 ## Step 7: Save the Artifact and Hand Off
 
-// turbo
-Save the architecture artifact to `.agents/results/architecture/`.
+Save ADRs and retained recommendations for a selected approach to `docs/decisions/` and update `docs/decisions/index.md`. Keep run-specific reviews, diagnoses, CBAM analyses, and unselected comparison drafts in `.agents/results/architecture/`. When promoting a report into `docs/decisions/`, record the destination in the source report.
 
-Suggested filenames:
-- `architecture-recommendation-<topic>.md`
-- `architecture-review-<topic>.md`
-- `adr-<topic>.md`
-- `cbam-<topic>.md`
+Suggested filenames (kebab-case topic, no sequence numbers):
+- `docs/decisions/adr-<topic>.md`
+- `docs/decisions/architecture-recommendation-<topic>.md` for a retained selected approach
+- `.agents/results/architecture/architecture-review-<topic>.md`
+- `.agents/results/architecture/cbam-<topic>.md`
+- `.agents/results/architecture/diagnosis-<topic>.md`
+
+When dispatched, also write `.agents/results/result-{agentId}-{taskId}-{runId}-{sessionId}.md` and the injected structured claim. Preserve the injected IDs and link the architecture artifact from the report. Existing reports under coordination memory paths remain read fallback; new reports always use `.agents/results/`.
+
+ADR lifecycle: set `Status` (`Proposed` / `Accepted` / `Superseded by <adr-file>`) from the actual decision authority. A completed recommendation stays `Proposed` while a user-owned choice is unresolved; producing the artifact or emitting an event does not supply approval. When replacing an accepted ADR, update the prior artifact only when that supersession is authorized.
+
+### Step 7a: Render the structural diagram (archify when available)
+
+Only when the decision changes structure (boundaries, dependencies, data flow) and the artifact therefore carries a Mermaid diagram:
+
+1. Run `oma diagram resolve --json` and read `.agents/skills/_shared/conditional/diagram-engine.md`.
+2. `engine: mermaid` → the Mermaid block in the Markdown artifact is the delivered diagram; done.
+3. `engine: archify` → author `<artifact-stem>.archify.json` from the Mermaid topology, then `oma diagram archify validate …` / `oma diagram archify deliver … <artifact-stem>.archify.html` per the protocol. Allow at most 3 repair attempts or 10 minutes total, and stop earlier when the same diagnostic repeats. On success, link the HTML under the artifact's Diagram section; on a bound or convergence failure, keep the Mermaid block, preserve the JSON, and report the last diagnostics.
+4. `ok: false` (archify pinned but unresolvable — e.g. first run offline) → stop and tell the user to run `oma diagram update` once online; do not deliver a Mermaid-only artifact silently.
+
+Record the recommendation, its authority status, and supporting comparison. Keep recommendation completion separate from permission to implement:
+
+```bash
+oma state emit "decision.made" '{"subject":"architecture.adr-complete","instanceId":"<artifact path and revision>","decision":"<Proposed|Accepted>: <recommended or authorized option and structural boundary>.","rationale":"<option comparison, constraints, and actual acceptance authority when Accepted>","evidence":["<architecture artifact path>","<supporting comparison/authorization evidence>"]}'
+oma state verify --workflow architecture --checkpoint adr-complete --instance "<artifact path and revision>"
+```
 
 Then guide the next step:
 - if approved and implementation is next: suggest `/plan`

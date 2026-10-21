@@ -1,3 +1,7 @@
+---
+oma-docs: skip
+---
+
 # Bug Report Template
 
 Use this template when documenting bugs in the Knowledge Base.
@@ -12,12 +16,12 @@ Save to: `.agents/results/bugs/bug-YYYYMMDD-[short-description].md`
 **Date Fixed**: YYYY-MM-DD (or "In Progress")
 **Reporter**: [User name or issue number]
 **Assignee**: [Agent that fixed it]
-**Severity**: 🔴 CRITICAL | 🟠 HIGH | 🟡 MEDIUM | 🔵 LOW
-**Status**: 🐛 OPEN | 🔧 IN PROGRESS | ✅ FIXED | ⏸️ ON HOLD | ❌ WON'T FIX
+**Severity**: CRITICAL | HIGH | MEDIUM | LOW
+**Status**: OPEN | IN PROGRESS | FIXED | ON HOLD | WON'T FIX
 
 ---
 
-## 📝 Problem Description
+## Problem Description
 
 **What happened?**
 [Clear description of the bug from user's perspective]
@@ -32,7 +36,7 @@ Save to: `.agents/results/bugs/bug-YYYYMMDD-[short-description].md`
 
 ---
 
-## 🔄 Reproduction Steps
+## Reproduction Steps
 
 1. Navigate to [page/route]
 2. Click on [button/element]
@@ -46,7 +50,7 @@ Save to: `.agents/results/bugs/bug-YYYYMMDD-[short-description].md`
 
 ---
 
-## 🖼️ Evidence
+## Evidence
 
 **Error Messages**:
 ```
@@ -77,7 +81,7 @@ Response: [relevant response data]
 
 ---
 
-## 🌍 Environment
+## Environment
 
 **Frontend**:
 - Browser: [Chrome 120 | Firefox 121 | Safari 17]
@@ -97,7 +101,7 @@ Response: [relevant response data]
 
 ---
 
-## 🔍 Investigation
+## Investigation
 
 ### Initial Analysis
 
@@ -130,7 +134,7 @@ const user = data.user.profile.name; // Crashes if profile is undefined
 
 ---
 
-## 🔧 Solution
+## Solution
 
 ### Fix Applied
 
@@ -142,10 +146,10 @@ const user = data.user.profile.name; // Crashes if profile is undefined
 ```typescript
 // File: path/to/file.tsx (line 145)
 
-// ❌ BEFORE (buggy code)
+// BEFORE (buggy code)
 const user = data.user.profile.name;
 
-// ✅ AFTER (fixed code)
+// AFTER (fixed code)
 const user = data?.user?.profile?.name ?? 'Unknown';
 ```
 
@@ -154,9 +158,9 @@ const user = data?.user?.profile?.name ?? 'Unknown';
 
 ### Files Modified
 
-- ✏️ `src/components/UserProfile.tsx` - Added null check for profile
-- ✏️ `src/lib/api/users.ts` - Improved error handling
-- ➕ `src/components/UserProfile.test.tsx` - Added regression test
+- `src/components/UserProfile.tsx` - Added null check for profile
+- `src/lib/api/users.ts` - Improved error handling
+- `src/components/UserProfile.test.tsx` - Added regression test
 
 ### Migration/Deployment Notes
 
@@ -167,35 +171,25 @@ const user = data?.user?.profile?.name ?? 'Unknown';
 
 ---
 
-## ✅ Verification
+## Verification
 
 ### Testing Performed
 
-- [x] **Regression test added**
-  - File: `src/components/UserProfile.test.tsx`
-  - Coverage: Null profile, undefined user, missing name
-
-- [x] **Manual testing**
-  - Tested original reproduction steps
-  - Tested edge cases (null, undefined, empty)
-  - Verified fix works in all browsers
-
-- [x] **Related areas checked**
-  - Found similar pattern in `TeamProfile.tsx` - also fixed
-  - Checked all `.profile.` usages - 3 more locations updated
-
-- [x] **Performance impact**: None | [Describe if any]
+- [ ] Regression test: [file, cases, command and actual outcome]
+- [ ] Manual reproduction: [steps, environment and actual outcome]
+- [ ] Related areas: [scope actually checked and findings]
+- [ ] Performance: [measurement or not checked]
 
 ### Test Results
 
-**Unit Tests**: ✅ 15/15 passing
-**Integration Tests**: ✅ 8/8 passing
-**E2E Tests**: ✅ 3/3 passing
-**Manual QA**: ✅ Verified on Chrome, Firefox, Safari
+**Unit Tests**: [command, passed/failed/skipped counts, or not run]
+**Integration Tests**: [command and actual outcome, or not run]
+**E2E Tests**: [command and actual outcome, or not run]
+**Manual QA**: [browsers/devices actually checked, or not checked]
 
 ---
 
-## 📚 Prevention
+## Prevention
 
 ### How to Avoid Similar Bugs
 
@@ -208,20 +202,20 @@ const user = data?.user?.profile?.name ?? 'Unknown';
 ### Code Patterns to Follow
 
 ```typescript
-// ✅ GOOD: Safe access with fallback
+// GOOD: Safe access with fallback
 const name = user?.profile?.name ?? 'Anonymous';
 
-// ✅ GOOD: Explicit null check
+// GOOD: Explicit null check
 if (user?.profile) {
   const name = user.profile.name;
 }
 
-// ✅ GOOD: Early return
+// GOOD: Early return
 if (!user?.profile) {
   return <div>No profile available</div>;
 }
 
-// ❌ BAD: Unsafe nested access
+// BAD: Unsafe nested access
 const name = user.profile.name; // Crashes if profile undefined
 ```
 
@@ -233,7 +227,7 @@ const name = user.profile.name; // Crashes if profile undefined
 
 ---
 
-## 🔗 Related
+## Related
 
 **Similar Bugs**:
 - Bug #123: Similar null check issue in `CommentList`
@@ -252,7 +246,7 @@ const name = user.profile.name; // Crashes if profile undefined
 
 ---
 
-## 📊 Metrics
+## Metrics
 
 **Time to Fix**: [2 hours | 1 day | 1 week]
 **Lines Changed**: [+15 -5]
@@ -261,13 +255,10 @@ const name = user.profile.name; // Crashes if profile undefined
 
 ---
 
-## 💬 Communication
+## Communication
 
-**Notified**:
-- [x] Product Manager - Impact assessment
-- [x] QA Team - Additional testing needed
-- [x] Users affected - Via email/announcement
-- [ ] Other teams - [Specify]
+**Communication**: [Only record messages actually sent within authorized scope;
+otherwise mark not sent. Do not send email or chat solely to fill this template.]
 
 **Changelog Entry**:
 ```markdown
@@ -277,7 +268,7 @@ const name = user.profile.name; // Crashes if profile undefined
 
 ---
 
-## 🎓 Lessons Learned
+## Lessons Learned
 
 **What went well**:
 - Quick identification of root cause
@@ -297,7 +288,7 @@ const name = user.profile.name; // Crashes if profile undefined
 
 ---
 
-## 🏷️ Tags
+## Tags
 
 `frontend` `null-check` `crash` `typescript` `user-profile` `high-priority`
 
@@ -325,6 +316,10 @@ const name = user.profile.name; // Crashes if profile undefined
 - Screenshots (if text description is clear)
 - Stack trace (if no error thrown)
 - Migration notes (if no DB/config changes)
+- Communication, Metrics, Sign-off (org-process sections; skip when running as an autonomous agent)
+
+**For Simple/Medium bugs**: the condensed template in
+`debugging-checklist.md` §Documentation Template is sufficient.
 
 **Optional sections to add**:
 - Timeline (for long-running bugs)

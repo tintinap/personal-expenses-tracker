@@ -17,28 +17,6 @@ Focus indicators must have >= 3:1 contrast against adjacent colors.
 
 ## Motion & Animation
 
-### prefers-reduced-motion (MANDATORY)
-
-All animations must respect this media query:
-
-```css
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-```
-
-In motion/react:
-```tsx
-import { useReducedMotion } from "motion/react"
-
-const prefersReduced = useReducedMotion()
-// Disable or simplify animations when true
-```
-
 ### Rules
 - Never auto-play animations that can't be paused
 - Provide a mechanism to pause all animations (e.g., a toggle)
@@ -49,12 +27,12 @@ const prefersReduced = useReducedMotion()
 
 ### Landmarks
 Every page must use these semantic elements:
-- `<header>` — site header with navigation
-- `<nav>` — primary navigation
-- `<main>` — main content (one per page)
-- `<footer>` — site footer
-- `<section>` — thematic grouping with heading
-- `<article>` — self-contained content
+- `<header>`: site header with navigation
+- `<nav>`: primary navigation
+- `<main>`: main content (one per page)
+- `<footer>`: site footer
+- `<section>`: thematic grouping with heading
+- `<article>`: self-contained content
 
 ### Headings
 - Sequential hierarchy: h1 → h2 → h3 (never skip levels)
@@ -85,7 +63,7 @@ Every page must use these semantic elements:
 
 ### Rules
 - Don't use ARIA when native HTML semantics suffice
-- `aria-label` overrides visible text — use only when no visible label exists
+- `aria-label` overrides visible text; use only when no visible label exists
 - Test with screen readers (VoiceOver on Mac, NVDA on Windows)
 
 ## Focus Management
