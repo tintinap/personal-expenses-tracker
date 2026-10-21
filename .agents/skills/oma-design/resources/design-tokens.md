@@ -121,10 +121,10 @@ When using shadcn/ui, map tokens to its expected HSL format in `globals.css`:
     --foreground: 0 0% 3.9%;
     --primary: 142 71% 45%;
     --primary-foreground: 0 0% 3.9%;
-    --secondary: 240 10% 10%;
-    --muted: 240 5% 46%;
-    --muted-foreground: 240 5% 65%;
-    --border: 0 0% 100% / 0.1;
+    --secondary: 240 5% 96%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 40%;
+    --border: 240 5% 55%;
     --ring: 142 71% 45%;
     --radius: 0.75rem;
   }
@@ -145,7 +145,7 @@ When using shadcn/ui, map tokens to its expected HSL format in `globals.css`:
 
 ## Usage Notes
 
-- These are **templates** — replace values with project-specific colors, fonts, and spacing
+- These are **templates**; replace values with project-specific colors, fonts, and spacing
 - Always derive tokens from the DESIGN.md specification
 - CSS custom properties are the source of truth; Tailwind config references them via `var()`
 - For CJK projects, update `--font-body` to include Pretendard or Noto Sans CJK

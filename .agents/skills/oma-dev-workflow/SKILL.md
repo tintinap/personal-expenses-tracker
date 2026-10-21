@@ -1,11 +1,21 @@
 ---
 name: oma-dev-workflow
-description: Use when setting up or optimizing developer workflows in a monorepo, managing mise tasks, git hooks, CI/CD pipelines, database migrations, or release automation. Invoke for development environment setup, build automation, testing workflows, and release coordination.
+description: "Configure development tasks, git hooks, CI/CD, or release automation. Use when creating or fixing a repository development workflow."
 ---
 
 # Dev Workflow - Monorepo Task Automation Specialist
 
-## When to use
+## Scheduling
+
+### Goal
+Set up, run, optimize, and troubleshoot reproducible development workflows using `mise`, language-specific checks, commitlint, validation pipelines, CI/CD, migrations, i18n builds, and release coordination.
+
+### Intent signature
+- User asks about dev servers, mise tasks, lint/format/typecheck/test/build, git hooks, CI/CD, migrations, generated clients, i18n builds, or release automation.
+- User needs workflow execution or developer environment setup rather than product feature implementation.
+- User asks to configure Ruff/pyrefly, Biome/TypeScript 7, Dart/Flutter checks, Hadolint, or commitlint.
+
+### When to use
 
 - Running development servers for monorepo with multiple applications
 - Executing lint, format, typecheck across multiple apps in parallel
@@ -15,22 +25,118 @@ description: Use when setting up or optimizing developer workflows in a monorepo
 - Executing production builds and deployment preparation
 - Running parallel tasks in monorepo context
 - Setting up pre-commit validation workflows
+- Configuring language-specific lint, format, and typecheck tools, Dockerfile linting, and commit-message validation
 - Troubleshooting mise task failures or configuration issues
 - Optimizing CI/CD pipelines with mise
 
-## When NOT to use
+### When NOT to use
 
 - Database schema design or query tuning -> use DB Agent
 - Backend API implementation -> use Backend Agent
 - Frontend UI implementation -> use Frontend Agent
 - Mobile development -> use Mobile Agent
 
-## Core Rules
+### Expected inputs
+- Requested workflow operation, affected apps/packages, and current monorepo structure
+- Project manifests, lockfiles, tool configs, `mise.toml`, task definitions, CI files, hook manager, and failure logs when relevant
+- Desired validation, setup, or release outcome
+
+### Expected outputs
+- Executed or documented mise task workflow
+- Updated workflow config, CI/CD pipeline, hooks, env template, or release guidance when requested
+- Project-local tool dependencies/configs and runnable `lint`, `format`, `format:check`, `typecheck`, and commitlint tasks for the selected profiles
+- Status report with commands, outputs, failures, and next actions
+
+### Dependencies
+- `mise`, project task definitions, runtime versions, package managers behind mise tasks
+- Resource guides for validation, database patterns, API workflows, i18n, release coordination, and troubleshooting
+- Selected language toolchains and locally provisioned commitlint; no package downloads from Git hooks
+
+### Control-flow features
+- Branches by affected apps, task dependency graph, port availability, task failure, and CI/release context
+- Calls local process commands; may write workflow/config files
+- Must avoid destructive tasks and secrets in workflow configs
+
+## Structural Flow
+
+### Entry
+1. Identify affected apps/packages and requested workflow outcome.
+2. Read `mise.toml` files and available tasks.
+3. Determine whether tasks can run in parallel or must be sequential.
+
+### Scenes
+1. **PREPARE**: Analyze requirements, task graph, runtime prerequisites, and ports.
+2. **ACQUIRE**: Inspect mise config, task definitions, CI hooks, env patterns, and logs.
+3. **ACT**: Run or modify mise tasks, workflow configs, or validation pipelines.
+4. **VERIFY**: Check exit codes, generated artifacts, logs, and CI compatibility.
+5. **FINALIZE**: Report command status, duration, failures, and next steps.
+
+### Transitions
+- If runtime versions changed, run `mise install`.
+- If changed-file tasks exist, prefer changed-scope validation.
+- If port is occupied, resolve or select another port before starting dev server.
+- If a task is unfamiliar, read its definition before running.
+- For setup, preserve existing tools and commands; apply language defaults only where configuration is missing. For execution-only requests, use existing checks without installing or replacing tools.
+- `/stack-set` detects and records the stack. This skill owns tool setup and task/CI wiring; domain skills consume the resulting verification commands.
+
+### Failure and recovery
+- If task is missing, run `mise tasks --all`.
+- If runtime is missing, run or recommend `mise install`.
+- If task hangs, check for prompts or long-running dev-server behavior.
+- If destructive task is requested, require confirmation.
+- If a selected checker cannot run, report that check as incomplete and fix its setup within scope; do not replace it with a passing placeholder or a build.
+- If a hook skips because another check is still running and exits 0, that push was not validated. Stop the owned previous run, or exit nonzero. Do not hide a gate failure with `|| true`.
+
+### Exit
+- Success: workflow runs or config changes are verified.
+- Partial success: task failures, missing runtime, or CI/environment blockers are explicit.
+
+## Logical Operations
+
+### Actions
+| Action | SSL primitive | Evidence |
+|--------|---------------|----------|
+| Read task definitions | `READ` | `mise.toml`, CI config |
+| Select task strategy | `SELECT` | Parallel/sequential/changed-scope |
+| Run workflow commands | `CALL_TOOL` | `mise run`, `mise install`, `mise tasks` |
+| Write workflow config | `WRITE` | Hooks, CI, env templates |
+| Validate outputs | `VALIDATE` | Exit codes, logs, artifacts |
+| Report status | `NOTIFY` | Final workflow summary |
+
+### Tools and instruments
+- `mise`, shell, CI/CD tooling, project package manager tasks behind mise
+- Resource guides for validation, database, API, i18n, release, and troubleshooting
+
+### Canonical command path
+1. Inspect affected app manifests, lockfiles, tool configs, `mise.toml`, CI, hooks, and any `stack/stack.yaml`. Read task definitions and use `mise tasks --all` to discover existing commands.
+2. For setup or tool changes, load the selected tooling profiles from References. Configure missing dependencies, settings, and tasks with the detected package manager; preserve existing tool choices. For checks alone, skip setup.
+3. Expose applicable checks as `lint`, `format:check`, and `typecheck`; keep mutating `format` separate. A `check` task can aggregate non-emitting checks. Connect existing stack `verify.syntax.cmd` to that task without adding unsupported schema keys; preserve `verify.tests` and domain-specific scans.
+4. For hook/CI setup, load the validation pipeline. Provision locked local tools first, preserve the existing hook manager, and connect commitlint to the local `commit-msg` hook. Staged lint stays on pre-commit. Typecheck the whole affected app on the push gate when commit time is the constraint. Configure CI for app checks and tests.
+5. Before relaunching local validation, follow the validation pipeline's repeated-run guidance. A skipped run is not a pass. Run the configured `mise run check` aggregate, or the applicable individual `lint`, `format:check`, and `typecheck` tasks, plus relevant existing tests. Run each underlying checker once. Use `mise run //{path}:{task}` for configured monorepos; typecheck the complete affected app rather than individual changed files.
+6. Report the selected tools, commands, checks passed, and any unavailable or inapplicable checks. Builds remain subject to the execution policy.
+
+### Resource scope
+| Scope | Resource target |
+|-------|-----------------|
+| `CODEBASE` | `mise.toml`, CI configs, scripts, generated clients |
+| `LOCAL_FS` | Env templates, build outputs, logs |
+| `PROCESS` | mise, build, test, lint, dev-server commands |
+| `CREDENTIALS` | Secrets must not be hardcoded in workflow configs |
+
+### Preconditions
+- Target workflow and affected project area are identifiable.
+- Task definitions can be discovered or missing-task state is reported.
+
+### Effects and side effects
+- May start dev servers, run tests/builds, generate clients, run migrations, or edit workflow configs.
+- May consume CPU/time or occupy ports.
+
+### Guardrails
 
 1. Always use `mise run` tasks instead of direct package manager commands
 2. Run `mise install` after pulling changes that might update runtime versions
-3. Use parallel tasks (`mise run lint`, `mise run test`) for independent operations
-4. Run lint/test only on apps with changed files (`lint:changed`, `test:changed`)
+3. Use parallel tasks (`mise run lint`, `mise run test`) for independent operations. Cap concurrency when a measurement shows more workers slow the same suite
+4. Run lint and test on changed scope. Keep a repository selector that already fails closed on shared or unknown paths; do not replace it with the generic affected-checks helper
 5. Validate commit messages with commitlint before committing
 6. Run pre-commit validation pipeline for staged files only
 7. Configure CI to skip unchanged apps for faster builds
@@ -41,18 +147,21 @@ description: Use when setting up or optimizing developer workflows in a monorepo
 12. Enable mise in CI/CD pipelines for reproducible builds
 13. Pin runtime versions in mise.toml for consistency
 14. Test tasks locally before committing CI/CD changes
-15. Never use direct package manager commands when mise tasks exist
+15. Never fetch packages from a Git hook. When a mise task already runs a checker, call that task. A hook running under `mise exec` may call the pinned local binary directly
 16. Never modify mise.toml without understanding task dependencies
 17. Never skip `mise install` after toolchain version updates
 18. Never run dev servers without checking port availability first
-19. Never commit without running validation on affected apps
+19. Never commit past a failing staged lint. Typecheck the whole affected app on the push gate when doing it on every commit would dominate commit time
 20. Never ignore task failures - always investigate root cause
 21. Never hardcode secrets in mise.toml files
 22. Never assume task availability - always verify with `mise tasks`
 23. Never run destructive tasks (clean, reset) without confirmation
 24. Never skip reading task definitions before running unfamiliar tasks
+25. Always quote task names containing `:` in mise.toml (`[tasks."lint:changed"]`) — unquoted colons fail TOML parsing
+26. Always set `monorepo_root = true` (plus `[monorepo].config_roots`) in the root mise.toml before using `//path:task` syntax
+27. Keep check tasks non-mutating; run format/fix tasks only within the requested edit scope, and never rewrite unstaged changes from a Git hook
 
-## Technical Guidelines
+### Technical Guidelines
 
 ### Prerequisites
 
@@ -88,6 +197,16 @@ project-root/
 └── scripts/            # Utility scripts
 ```
 
+The root `mise.toml` must enable monorepo task paths, or every `//path:task` invocation fails with "require a monorepo root configuration":
+
+```toml
+# Root mise.toml — monorepo_root is a top-level key (before any [table])
+monorepo_root = true
+
+[monorepo]
+config_roots = ["apps/*", "packages/*"]
+```
+
 ### Task Syntax
 
 **Root-level tasks:**
@@ -101,10 +220,13 @@ mise run build       # Production builds
 **App-specific tasks:**
 ```bash
 # Syntax: mise run //{path}:{task}
+# Requires monorepo_root = true in root mise.toml (see Project Structure)
 mise run //apps/api:dev
 mise run //apps/api:test
 mise run //apps/web:build
 ```
+
+**TOML quoting rule:** task names containing `:` must be quoted — `[tasks."gen:api"]`, never `[tasks.gen:api]` (unquoted colons are a TOML parse error).
 
 ### Common Task Patterns
 
@@ -115,14 +237,16 @@ mise run //apps/web:build
 | `test` | Run test suite | `mise run //apps/api:test` |
 | `lint` | Run linter | `mise run lint` |
 | `format` | Format code | `mise run format` |
+| `format:check` | Check formatting without writes | `mise run format:check` |
 | `typecheck` | Type checking | `mise run typecheck` |
+| `check` | Aggregate applicable non-emitting checks | `mise run check` |
 | `migrate` | Database migrations | `mise run //apps/api:migrate` |
 
 ### Reference Guide
 
 | Topic | Resource File | When to Load |
 |-------|---------------|--------------|
-| Validation Pipeline | `resources/validation-pipeline.md` | Git hooks, CI/CD, change-based testing |
+| Validation Pipeline | `resources/validation-pipeline.md` | Git hooks, CI/CD, change-based testing, repeated local validation |
 | Database & Infrastructure | `resources/database-patterns.md` | Migrations, local Docker infra |
 | API Generation | `resources/api-workflows.md` | Generating API clients |
 | i18n Patterns | `resources/i18n-patterns.md` | Internationalization |
@@ -146,8 +270,11 @@ depends = ["//apps/api:dev", "//apps/web:dev"]
 
 **Parallel (independent tasks):**
 ```bash
-# Runs all lint tasks simultaneously
+# Runs all lint tasks simultaneously (via depends)
 mise run lint
+
+# mise-native parallel execution of multiple tasks
+mise run lint ::: test
 ```
 
 **Sequential (dependent tasks):**
@@ -182,7 +309,7 @@ API_URL=http://localhost:8000
 PUBLIC_API_URL=http://localhost:8000
 ```
 
-## Output Templates
+### Output Templates
 
 When setting up development environment:
 1. Runtime installation verification (`mise list`)
@@ -203,7 +330,7 @@ When troubleshooting:
 3. Port/process conflict resolution
 4. Cleanup commands if needed
 
-## Troubleshooting Guide
+### Troubleshooting Guide
 
 | Issue | Solution |
 |-------|----------|
@@ -214,7 +341,7 @@ When troubleshooting:
 | Permission denied | Check file permissions, try with proper user |
 | Missing dependencies | Run `mise run install` or app-specific install |
 
-## How to Execute
+### How to Execute
 
 Follow the core workflow step by step:
 1. **Analyze Task Requirements** - Identify which apps are affected and task dependencies
@@ -225,16 +352,14 @@ Follow the core workflow step by step:
 6. **Verify Results** - Check output, logs, and generated artifacts
 7. **Report Status** - Summarize success/failure with actionable next steps
 
-## Execution Protocol (CLI Mode)
-
-Vendor-specific execution protocols are injected automatically by `oma agent:spawn`.
-Source files live under `../_shared/runtime/execution-protocols/{vendor}.md`.
+### Execution Protocol (CLI Mode)
 
 ## References
 
+- Tooling profiles: [resources/tooling-profiles.md](resources/tooling-profiles.md) (configure or change Python, JS/TS, Dart/Flutter, Dockerfile, or commitlint tooling)
 - Clarification: `../_shared/core/clarification-protocol.md`
-- Difficulty assessment: `../_shared/core/difficulty-guide.md`
+- Task decomposition: `../_shared/core/difficulty-guide.md` (unresolved scope or dependencies)
 
-## Knowledge Reference
+### Knowledge Reference
 
 mise, task runner, monorepo, dev server, lint, format, test, typecheck, build, deployment, ci/cd, parallel execution, workflow, automation, tooling

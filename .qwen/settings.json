@@ -1,0 +1,84 @@
+{
+  "env": {
+    "MODELSCOPE_API_TOKEN": "$MODELSCOPE_API_TOKEN"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "Qwen/Qwen3.8-27B",
+        "name": "Qwen/Qwen3.8-27B",
+        "baseUrl": "https://api-inference.modelscope.ai/v1",
+        "envKey": "MODELSCOPE_API_TOKEN",
+        "generationConfig": {
+          "timeout": 300000
+        }
+      },
+      {
+        "id": "deepseek-ai/DeepSeek-V4-Pro:DashScope",
+        "name": "deepseek-ai/DeepSeek-V4-Pro",
+        "baseUrl": "https://api-inference.modelscope.ai/v1",
+        "envKey": "MODELSCOPE_API_TOKEN",
+        "generationConfig": {
+          "timeout": 300000
+        }
+      },
+      {
+        "id": "stepfun-ai/Step-5-Preview",
+        "name": "stepfun-ai/Step-5-Preview",
+        "baseUrl": "https://api-inference.modelscope.ai/v1",
+        "envKey": "MODELSCOPE_API_TOKEN",
+        "generationConfig": {
+          "timeout": 300000
+        }
+      },
+      {
+        "id": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "name": "deepseek-ai/DeepSeek-V4.1-Flash",
+        "baseUrl": "https://api-inference.modelscope.ai/v1",
+        "envKey": "MODELSCOPE_API_TOKEN",
+        "generationConfig": {
+          "timeout": 300000
+        }
+      }
+    ]
+  },
+  "$version": 4,
+  "security": {
+    "auth": {
+      "selectedType": "openai"
+    }
+  },
+  "model": {
+    "name": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    "baseUrl": "https://api-inference.modelscope.ai/v1"
+  },
+  "mcpServers": {
+    "modelscope-image": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gracefullight/modelscope-image-mcp",
+        "--model",
+        "Qwen/Qwen-Image-2.1"
+      ],
+      "env": {
+        "MODELSCOPE_API_TOKEN": "$MODELSCOPE_API_TOKEN"
+      },
+      "timeout": 660000
+    }
+  },
+  "permissions": {
+    "deny": [
+      "Bash(sudo *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.qwen/settings.json)"
+    ]
+  },
+  "tools": {
+    "approvalMode": "yolo"
+  }
+}
